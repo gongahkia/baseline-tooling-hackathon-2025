@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { BaselineDataService } from '../services/BaselineDataService';
 import { CompatibilityIssue, BaselineFeature } from '../types/baseline';
 
-export class CompatibilityDiagnosticProvider implements vscode.DiagnosticProvider {
+export class CompatibilityDiagnosticProvider {
     private dataService: BaselineDataService;
     private diagnosticCollection: vscode.DiagnosticCollection;
 
