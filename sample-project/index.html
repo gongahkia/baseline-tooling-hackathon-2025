@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GroundWork Demo - Modern Web Features</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>GroundWork Demo</h1>
+        <p>This sample project demonstrates various modern web features and their Baseline compatibility status.</p>
+    </header>
+
+    <main>
+        <!-- CSS Grid Layout (Widely Available) -->
+        <section class="grid-demo">
+            <h2>CSS Grid Layout</h2>
+            <div class="grid-container">
+                <div class="grid-item">Item 1</div>
+                <div class="grid-item">Item 2</div>
+                <div class="grid-item">Item 3</div>
+                <div class="grid-item">Item 4</div>
+            </div>
+        </section>
+
+        <!-- CSS Container Queries (Newly Available) -->
+        <section class="container-queries-demo">
+            <h2>CSS Container Queries</h2>
+            <div class="container">
+                <div class="card">
+                    <h3>Card Title</h3>
+                    <p>This card uses container queries to adapt its layout based on its container size.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- HTML Dialog Element (Newly Available) -->
+        <section class="dialog-demo">
+            <h2>HTML Dialog Element</h2>
+            <button id="dialog-button">Open Dialog</button>
+            <dialog id="demo-dialog">
+                <h3>Dialog Title</h3>
+                <p>This is a native HTML dialog element.</p>
+                <button id="close-dialog">Close</button>
+            </dialog>
+        </section>
+
+        <!-- HTML Details/Summary (Widely Available) -->
+        <section class="details-demo">
+            <h2>HTML Details/Summary</h2>
+            <details>
+                <summary>Click to expand</summary>
+                <p>This content is hidden by default and can be toggled.</p>
+            </details>
+        </section>
+
+        <!-- CSS Custom Properties (Widely Available) -->
+        <section class="custom-properties-demo">
+            <h2>CSS Custom Properties</h2>
+            <div class="themed-box">
+                <p>This box uses CSS custom properties for theming.</p>
+            </div>
+        </section>
+
+        <!-- CSS Subgrid (Limited Support) -->
+        <section class="subgrid-demo">
+            <h2>CSS Subgrid</h2>
+            <div class="subgrid-container">
+                <div class="subgrid-item">
+                    <h4>Subgrid Item 1</h4>
+                    <p>Content 1</p>
+                </div>
+                <div class="subgrid-item">
+                    <h4>Subgrid Item 2</h4>
+                    <p>Content 2</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>

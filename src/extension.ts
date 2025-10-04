@@ -16,7 +16,7 @@ let statusBar: BaselineStatusBar;
 let commands: BaselineCommands;
 
 export async function activate(context: vscode.ExtensionContext) {
-    console.log('Baseline-Aware Development Assistant is now active!');
+    console.log('GroundWork is now active!');
 
     // Initialize services
     dataService = new BaselineDataService(context);
@@ -39,7 +39,7 @@ export async function activate(context: vscode.ExtensionContext) {
     // Set up file watchers for automatic checking
     const watcher = vscode.workspace.createFileSystemWatcher('**/*.{html,css,js,ts,tsx}');
     watcher.onDidChange(async (uri) => {
-        if (vscode.workspace.getConfiguration('baseline').get('autoCheck', true)) {
+        if (vscode.workspace.getConfiguration('groundwork').get('autoCheck', true)) {
             const document = await vscode.workspace.openTextDocument(uri);
             const diagnostics = await diagnosticProvider.provideDiagnostics(document, new vscode.CancellationTokenSource().token);
             diagnosticCollection.set(uri, diagnostics || []);
@@ -90,13 +90,13 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // Register tree view
     context.subscriptions.push(
-        vscode.window.createTreeView('baselineFeatures', {
+        vscode.window.createTreeView('groundworkFeatures', {
             treeDataProvider: treeDataProvider
         })
     );
 
     context.subscriptions.push(
-        vscode.window.createTreeView('baselineWarnings', {
+        vscode.window.createTreeView('groundworkWarnings', {
             treeDataProvider: treeDataProvider
         })
     );
@@ -104,7 +104,7 @@ export async function activate(context: vscode.ExtensionContext) {
     // Register webview panel
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(
-            'baselineDashboard',
+            'groundworkDashboard',
             dashboardProvider,
             {
                 webviewOptions: {
@@ -116,25 +116,25 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // Register commands
     context.subscriptions.push(
-        vscode.commands.registerCommand('baseline.checkCompatibility', () => {
+        vscode.commands.registerCommand('groundwork.checkCompatibility', () => {
             commands.checkCompatibility();
         })
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('baseline.showDashboard', () => {
+        vscode.commands.registerCommand('groundwork.showDashboard', () => {
             commands.showDashboard();
         })
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('baseline.refreshData', () => {
+        vscode.commands.registerCommand('groundwork.refreshData', () => {
             commands.refreshData();
         })
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('baseline.configureProject', () => {
+        vscode.commands.registerCommand('groundwork.configureProject', () => {
             commands.configureProject();
         })
     );
@@ -143,10 +143,10 @@ export async function activate(context: vscode.ExtensionContext) {
     statusBar.initialize();
 
     // Update context for when clauses
-    vscode.commands.executeCommand('setContext', 'baseline.hasProject', true);
-    vscode.commands.executeCommand('setContext', 'baseline.hasWarnings', false);
+    vscode.commands.executeCommand('setContext', 'groundwork.hasProject', true);
+    vscode.commands.executeCommand('setContext', 'groundwork.hasWarnings', false);
 
-    console.log('Baseline-Aware Development Assistant activation complete');
+    console.log('GroundWork activation complete');
 }
 
 export function deactivate() {

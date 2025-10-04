@@ -309,5 +309,5 @@ class BaselineDashboardProvider {
     }
 }
 exports.BaselineDashboardProvider = BaselineDashboardProvider;
-BaselineDashboardProvider.viewType = 'baselineDashboard';
+BaselineDashboardProvider.viewType = 'groundworkDashboard';
 //# sourceMappingURL=BaselineDashboardProvider.js.map

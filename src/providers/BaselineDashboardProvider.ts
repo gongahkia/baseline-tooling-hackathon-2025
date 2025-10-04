@@ -3,7 +3,7 @@ import { BaselineDataService } from '../services/BaselineDataService';
 import { BaselineFeature } from '../types/baseline';
 
 export class BaselineDashboardProvider implements vscode.WebviewViewProvider {
-    public static readonly viewType = 'baselineDashboard';
+    public static readonly viewType = 'groundworkDashboard';
     private _view?: vscode.WebviewView;
     private dataService: BaselineDataService;
 

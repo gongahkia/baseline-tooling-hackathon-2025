@@ -79,7 +79,7 @@ export class BaselineCommands {
     async showDashboard(): Promise<void> {
         // The dashboard is already registered as a webview provider
         // This command just ensures it's visible
-        await vscode.commands.executeCommand('baselineDashboard.focus');
+        await vscode.commands.executeCommand('groundworkDashboard.focus');
     }
 
     async refreshData(): Promise<void> {
@@ -143,7 +143,7 @@ export class BaselineCommands {
 
                 if (autoCheck) {
                     // Update configuration
-                    const workspaceConfig = vscode.workspace.getConfiguration('baseline');
+                    const workspaceConfig = vscode.workspace.getConfiguration('groundwork');
                     await workspaceConfig.update('browserSupport', browserSupport.split(',').map(s => s.trim()), vscode.ConfigurationTarget.Workspace);
                     await workspaceConfig.update('warningLevel', warningLevel.value, vscode.ConfigurationTarget.Workspace);
                     await workspaceConfig.update('autoCheck', autoCheck.value, vscode.ConfigurationTarget.Workspace);

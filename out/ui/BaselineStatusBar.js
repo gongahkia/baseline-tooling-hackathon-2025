@@ -41,7 +41,7 @@ class BaselineStatusBar {
         });
         // Update status when configuration changes
         vscode.workspace.onDidChangeConfiguration(e => {
-            if (e.affectsConfiguration('baseline')) {
+            if (e.affectsConfiguration('groundwork')) {
                 this.updateStatus();
             }
         });
@@ -79,7 +79,7 @@ class BaselineStatusBar {
             .appendMarkdown(`- Warning Level: ${config.warningLevel}\n`)
             .appendMarkdown(`- Auto Check: ${config.autoCheck ? 'Enabled' : 'Disabled'}`);
         // Set command
-        this.statusBarItem.command = 'baseline.showDashboard';
+        this.statusBarItem.command = 'groundwork.showDashboard';
     }
     show() {
         if (!this.isVisible) {

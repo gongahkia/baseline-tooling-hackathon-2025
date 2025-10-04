@@ -142,7 +142,7 @@ export class BaselineTreeItem extends vscode.TreeItem {
             this.tooltip = this.createTooltip(feature);
             this.contextValue = 'baselineFeature';
             this.command = {
-                command: 'baseline.showFeatureDetails',
+                command: 'groundwork.showFeatureDetails',
                 title: 'Show Feature Details',
                 arguments: [feature]
             };

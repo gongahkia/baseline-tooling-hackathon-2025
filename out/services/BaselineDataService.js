@@ -221,7 +221,7 @@ class BaselineDataService {
         console.log('Mock baseline data loaded');
     }
     loadConfiguration() {
-        const config = vscode.workspace.getConfiguration('baseline');
+        const config = vscode.workspace.getConfiguration('groundwork');
         return {
             browserSupport: config.get('browserSupport', ['chrome 90', 'firefox 88', 'safari 14']),
             warningLevel: config.get('warningLevel', 'warning'),
@@ -231,7 +231,7 @@ class BaselineDataService {
     }
     setupConfigurationWatcher() {
         vscode.workspace.onDidChangeConfiguration(e => {
-            if (e.affectsConfiguration('baseline')) {
+            if (e.affectsConfiguration('groundwork')) {
                 this.config = this.loadConfiguration();
                 this.cache.set('baselineData', this.data, this.config.cacheDuration);
             }
