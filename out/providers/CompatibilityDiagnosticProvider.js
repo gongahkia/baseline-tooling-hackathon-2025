@@ -1,21 +1,39 @@
-import * as vscode from 'vscode';
-import { BaselineDataService } from '../services/BaselineDataService';
-import { CompatibilityIssue, BaselineFeature } from '../types/baseline';
-
-export class CompatibilityDiagnosticProvider {
-    private dataService: BaselineDataService;
-    private diagnosticCollection: vscode.DiagnosticCollection;
-
-    constructor(dataService: BaselineDataService) {
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CompatibilityDiagnosticProvider = void 0;
+const vscode = __importStar(require("vscode"));
+class CompatibilityDiagnosticProvider {
+    constructor(dataService) {
         this.dataService = dataService;
         this.diagnosticCollection = vscode.languages.createDiagnosticCollection('baseline');
     }
-
-    provideDiagnostics(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.ProviderResult<vscode.Diagnostic[]> {
-        const diagnostics: vscode.Diagnostic[] = [];
+    provideDiagnostics(document, token) {
+        const diagnostics = [];
         const text = document.getText();
         const language = document.languageId;
-
         // Parse different file types
         switch (language) {
             case 'html':
@@ -29,14 +47,11 @@ export class CompatibilityDiagnosticProvider {
                 diagnostics.push(...this.parseJavaScript(text, document));
                 break;
         }
-
         return diagnostics;
     }
-
-    private parseHTML(text: string, document: vscode.TextDocument): vscode.Diagnostic[] {
-        const diagnostics: vscode.Diagnostic[] = [];
+    parseHTML(text, document) {
+        const diagnostics = [];
         const lines = text.split('\n');
-
         // Check for HTML features
         const htmlFeatures = [
             { pattern: /<dialog[^>]*>/gi, featureId: 'html-dialog', name: 'HTML Dialog Element' },
@@ -50,10 +65,8 @@ export class CompatibilityDiagnosticProvider {
             { pattern: /<canvas[^>]*>/gi, featureId: 'html-canvas', name: 'HTML Canvas Element' },
             { pattern: /<svg[^>]*>/gi, featureId: 'html-svg', name: 'HTML SVG Element' }
         ];
-
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
-            
             for (const { pattern, featureId, name } of htmlFeatures) {
                 let match;
                 while ((match = pattern.exec(line)) !== null) {
@@ -67,14 +80,11 @@ export class CompatibilityDiagnosticProvider {
                 }
             }
         }
-
         return diagnostics;
     }
-
-    private parseCSS(text: string, document: vscode.TextDocument): vscode.Diagnostic[] {
-        const diagnostics: vscode.Diagnostic[] = [];
+    parseCSS(text, document) {
+        const diagnostics = [];
         const lines = text.split('\n');
-
         // Check for CSS features
         const cssFeatures = [
             { pattern: /display:\s*grid/gi, featureId: 'css-grid', name: 'CSS Grid Layout' },
@@ -95,10 +105,8 @@ export class CompatibilityDiagnosticProvider {
             { pattern: /transition:/gi, featureId: 'css-transition', name: 'CSS Transition' },
             { pattern: /animation:/gi, featureId: 'css-animation', name: 'CSS Animation' }
         ];
-
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
-            
             for (const { pattern, featureId, name } of cssFeatures) {
                 let match;
                 while ((match = pattern.exec(line)) !== null) {
@@ -112,14 +120,11 @@ export class CompatibilityDiagnosticProvider {
                 }
             }
         }
-
         return diagnostics;
     }
-
-    private parseJavaScript(text: string, document: vscode.TextDocument): vscode.Diagnostic[] {
-        const diagnostics: vscode.Diagnostic[] = [];
+    parseJavaScript(text, document) {
+        const diagnostics = [];
         const lines = text.split('\n');
-
         // Check for JavaScript features
         const jsFeatures = [
             { pattern: /\?\./g, featureId: 'javascript-optional-chaining', name: 'Optional Chaining' },
@@ -143,10 +148,8 @@ export class CompatibilityDiagnosticProvider {
             { pattern: /querySelector\(/g, featureId: 'javascript-query-selector', name: 'Query Selector' },
             { pattern: /querySelectorAll\(/g, featureId: 'javascript-query-selector', name: 'Query Selector' }
         ];
-
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
-            
             for (const { pattern, featureId, name } of jsFeatures) {
                 let match;
                 while ((match = pattern.exec(line)) !== null) {
@@ -160,55 +163,32 @@ export class CompatibilityDiagnosticProvider {
                 }
             }
         }
-
         return diagnostics;
     }
-
-    private createDiagnostic(feature: BaselineFeature, column: number, line: number, document: vscode.TextDocument): vscode.Diagnostic | null {
+    createDiagnostic(feature, column, line, document) {
         const config = this.dataService.getConfiguration();
         const severity = this.getSeverity(feature, config);
-        
         if (severity === null) {
             return null; // Feature meets requirements, no diagnostic needed
         }
-
-        const range = new vscode.Range(
-            line,
-            column,
-            line,
-            column + 50 // Approximate length
+        const range = new vscode.Range(line, column, line, column + 50 // Approximate length
         );
-
-        const diagnostic = new vscode.Diagnostic(
-            range,
-            this.createMessage(feature),
-            severity
-        );
-
+        const diagnostic = new vscode.Diagnostic(range, this.createMessage(feature), severity);
         diagnostic.source = 'Baseline';
         diagnostic.code = feature.id;
-        
         // Add related information
         diagnostic.relatedInformation = [
-            new vscode.DiagnosticRelatedInformation(
-                new vscode.Location(document.uri, range),
-                `Status: ${feature.status} | Baseline: ${feature.baseline.high}`
-            )
+            new vscode.DiagnosticRelatedInformation(new vscode.Location(document.uri, range), `Status: ${feature.status} | Baseline: ${feature.baseline.high}`)
         ];
-
         return diagnostic;
     }
-
-    private getSeverity(feature: BaselineFeature, config: any): vscode.DiagnosticSeverity | null {
+    getSeverity(feature, config) {
         const { browserSupport, warningLevel } = config;
-        
         // Check if feature meets browser support requirements
         const meetsRequirements = this.checkBrowserSupport(feature, browserSupport);
-        
         if (meetsRequirements) {
             return null; // No warning needed
         }
-
         // Return appropriate severity based on feature status and config
         switch (feature.status) {
             case 'limited':
@@ -216,46 +196,40 @@ export class CompatibilityDiagnosticProvider {
             case 'newly':
                 return warningLevel === 'error' ? vscode.DiagnosticSeverity.Error : vscode.DiagnosticSeverity.Warning;
             case 'widely':
-                return warningLevel === 'error' ? vscode.DiagnosticSeverity.Error : 
-                       warningLevel === 'warning' ? vscode.DiagnosticSeverity.Warning : vscode.DiagnosticSeverity.Information;
+                return warningLevel === 'error' ? vscode.DiagnosticSeverity.Error :
+                    warningLevel === 'warning' ? vscode.DiagnosticSeverity.Warning : vscode.DiagnosticSeverity.Information;
             default:
                 return vscode.DiagnosticSeverity.Information;
         }
     }
-
-    private checkBrowserSupport(feature: BaselineFeature, browserSupport: string[]): boolean {
+    checkBrowserSupport(feature, browserSupport) {
         // Simplified browser support checking
         // In a real implementation, this would use browserslist to check actual support
         return feature.status === 'widely';
     }
-
-    private createMessage(feature: BaselineFeature): string {
+    createMessage(feature) {
         const statusMessages = {
             'limited': 'Limited browser support',
             'newly': 'Newly available feature',
             'widely': 'Widely supported feature'
         };
-
         let message = `${feature.name}: ${statusMessages[feature.status]}`;
-        
         if (feature.usage_recommendation) {
             message += `\n\nRecommendation: ${feature.usage_recommendation}`;
         }
-        
         if (feature.progressive_enhancement) {
             message += `\n\nProgressive Enhancement: ${feature.progressive_enhancement}`;
         }
-
         return message;
     }
-
-    async refreshDocument(uri: vscode.Uri): Promise<void> {
+    async refreshDocument(uri) {
         const document = await vscode.workspace.openTextDocument(uri);
         const diagnostics = await this.provideDiagnostics(document, new vscode.CancellationTokenSource().token);
         this.diagnosticCollection.set(uri, diagnostics || []);
     }
-
-    clearDiagnostics(): void {
+    clearDiagnostics() {
         this.diagnosticCollection.clear();
     }
 }
+exports.CompatibilityDiagnosticProvider = CompatibilityDiagnosticProvider;
+//# sourceMappingURL=CompatibilityDiagnosticProvider.js.map
