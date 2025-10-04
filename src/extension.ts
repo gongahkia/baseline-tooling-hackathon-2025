@@ -36,17 +36,27 @@ export async function activate(context: vscode.ExtensionContext) {
     const diagnosticCollection = vscode.languages.createDiagnosticCollection('baseline');
     context.subscriptions.push(diagnosticCollection);
 
-    // Register diagnostic provider for multiple languages
-    const languages = ['html', 'css', 'javascript', 'typescript'];
-    for (const language of languages) {
-        context.subscriptions.push(
-            vscode.languages.registerDiagnosticProvider(
-                { scheme: 'file', language },
-                {
-                    provideDiagnostics: (document, token) => diagnosticProvider.provideDiagnostics(document, token)
-                }
-            )
-        );
+    // Set up file watchers for automatic checking
+    const watcher = vscode.workspace.createFileSystemWatcher('**/*.{html,css,js,ts,tsx}');
+    watcher.onDidChange(async (uri) => {
+        if (vscode.workspace.getConfiguration('baseline').get('autoCheck', true)) {
+            const document = await vscode.workspace.openTextDocument(uri);
+            const diagnostics = await diagnosticProvider.provideDiagnostics(document, new vscode.CancellationTokenSource().token);
+            diagnosticCollection.set(uri, diagnostics || []);
+        }
+    });
+    context.subscriptions.push(watcher);
+
+    // Manual diagnostic checking on command
+    const checkDocument = async (document: vscode.TextDocument) => {
+        const diagnostics = await diagnosticProvider.provideDiagnostics(document, new vscode.CancellationTokenSource().token);
+        diagnosticCollection.set(document.uri, diagnostics || []);
+    };
+
+    // Check active document on activation
+    const activeEditor = vscode.window.activeTextEditor;
+    if (activeEditor) {
+        checkDocument(activeEditor.document);
     }
 
     // Register hover provider
@@ -131,15 +141,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // Initialize status bar
     statusBar.initialize();
-
-    // Set up file watchers for automatic checking
-    const watcher = vscode.workspace.createFileSystemWatcher('**/*.{html,css,js,ts,tsx}');
-    watcher.onDidChange(async (uri) => {
-        if (vscode.workspace.getConfiguration('baseline').get('autoCheck', true)) {
-            await diagnosticProvider.refreshDocument(uri);
-        }
-    });
-    context.subscriptions.push(watcher);
 
     // Update context for when clauses
     vscode.commands.executeCommand('setContext', 'baseline.hasProject', true);

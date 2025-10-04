@@ -1,38 +1,48 @@
-import * as vscode from 'vscode';
-import { BaselineDataService } from '../services/BaselineDataService';
-import { CompatibilityDiagnosticProvider } from '../providers/CompatibilityDiagnosticProvider';
-import { BaselineDashboardProvider } from '../providers/BaselineDashboardProvider';
-
-export class BaselineCommands {
-    private dataService: BaselineDataService;
-    private diagnosticProvider: CompatibilityDiagnosticProvider;
-    private dashboardProvider: BaselineDashboardProvider;
-
-    constructor(
-        dataService: BaselineDataService,
-        diagnosticProvider: CompatibilityDiagnosticProvider,
-        dashboardProvider: BaselineDashboardProvider
-    ) {
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.BaselineCommands = void 0;
+const vscode = __importStar(require("vscode"));
+class BaselineCommands {
+    constructor(dataService, diagnosticProvider, dashboardProvider) {
         this.dataService = dataService;
         this.diagnosticProvider = diagnosticProvider;
         this.dashboardProvider = dashboardProvider;
     }
-
-    async checkCompatibility(): Promise<void> {
+    async checkCompatibility() {
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
             vscode.window.showWarningMessage('No active editor found');
             return;
         }
-
         const document = editor.document;
         const language = document.languageId;
-
         if (!['html', 'css', 'javascript', 'typescript'].includes(language)) {
             vscode.window.showWarningMessage('Compatibility checking is only available for HTML, CSS, JavaScript, and TypeScript files');
             return;
         }
-
         try {
             vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
@@ -40,49 +50,40 @@ export class BaselineCommands {
                 cancellable: false
             }, async (progress) => {
                 progress.report({ increment: 0, message: 'Analyzing file...' });
-                
                 // Get diagnostics for the current document
                 const diagnostics = await this.diagnosticProvider.provideDiagnostics(document, new vscode.CancellationTokenSource().token);
-                
                 progress.report({ increment: 50, message: 'Generating report...' });
-                
                 // Update diagnostic collection
                 const diagnosticCollection = vscode.languages.getDiagnostics(document.uri);
                 const baselineDiagnostics = diagnosticCollection.filter(d => d.source === 'Baseline');
-                
                 progress.report({ increment: 100, message: 'Complete!' });
-                
                 // Show results
                 if (baselineDiagnostics.length === 0) {
                     vscode.window.showInformationMessage('No Baseline compatibility issues found!');
-                } else {
+                }
+                else {
                     const errorCount = baselineDiagnostics.filter(d => d.severity === vscode.DiagnosticSeverity.Error).length;
                     const warningCount = baselineDiagnostics.filter(d => d.severity === vscode.DiagnosticSeverity.Warning).length;
                     const infoCount = baselineDiagnostics.filter(d => d.severity === vscode.DiagnosticSeverity.Information).length;
-                    
-                    vscode.window.showInformationMessage(
-                        `Found ${baselineDiagnostics.length} Baseline compatibility issues: ${errorCount} errors, ${warningCount} warnings, ${infoCount} info`,
-                        'View Details'
-                    ).then(selection => {
+                    vscode.window.showInformationMessage(`Found ${baselineDiagnostics.length} Baseline compatibility issues: ${errorCount} errors, ${warningCount} warnings, ${infoCount} info`, 'View Details').then(selection => {
                         if (selection === 'View Details') {
                             this.showCompatibilityReport(baselineDiagnostics);
                         }
                     });
                 }
             });
-        } catch (error) {
+        }
+        catch (error) {
             console.error('Error checking compatibility:', error);
             vscode.window.showErrorMessage('Failed to check compatibility');
         }
     }
-
-    async showDashboard(): Promise<void> {
+    async showDashboard() {
         // The dashboard is already registered as a webview provider
         // This command just ensures it's visible
         await vscode.commands.executeCommand('baselineDashboard.focus');
     }
-
-    async refreshData(): Promise<void> {
+    async refreshData() {
         try {
             vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
@@ -90,122 +91,91 @@ export class BaselineCommands {
                 cancellable: false
             }, async (progress) => {
                 progress.report({ increment: 0, message: 'Fetching latest data...' });
-                
                 await this.dataService.refreshData();
-                
                 progress.report({ increment: 50, message: 'Updating providers...' });
-                
                 // Refresh all providers
                 this.diagnosticProvider.clearDiagnostics();
-                
                 progress.report({ increment: 100, message: 'Complete!' });
-                
                 vscode.window.showInformationMessage('Baseline data refreshed successfully!');
             });
-        } catch (error) {
+        }
+        catch (error) {
             console.error('Error refreshing data:', error);
             vscode.window.showErrorMessage('Failed to refresh Baseline data');
         }
     }
-
-    async configureProject(): Promise<void> {
+    async configureProject() {
         const config = this.dataService.getConfiguration();
-        
         // Show configuration options
         const browserSupport = await vscode.window.showInputBox({
             prompt: 'Enter browser support targets (e.g., "chrome 90, firefox 88, safari 14")',
             value: config.browserSupport.join(', '),
             placeHolder: 'chrome 90, firefox 88, safari 14'
         });
-
         if (browserSupport !== undefined) {
-            const warningLevel = await vscode.window.showQuickPick(
-                [
-                    { label: 'Error', description: 'Show errors for all compatibility issues', value: 'error' },
-                    { label: 'Warning', description: 'Show warnings for compatibility issues', value: 'warning' },
-                    { label: 'Info', description: 'Show info for compatibility issues', value: 'info' }
-                ],
-                {
-                    placeHolder: 'Select warning level'
-                }
-            );
-
+            const warningLevel = await vscode.window.showQuickPick([
+                { label: 'Error', description: 'Show errors for all compatibility issues', value: 'error' },
+                { label: 'Warning', description: 'Show warnings for compatibility issues', value: 'warning' },
+                { label: 'Info', description: 'Show info for compatibility issues', value: 'info' }
+            ], {
+                placeHolder: 'Select warning level'
+            });
             if (warningLevel) {
-                const autoCheck = await vscode.window.showQuickPick(
-                    [
-                        { label: 'Yes', description: 'Automatically check compatibility as you type', value: true },
-                        { label: 'No', description: 'Only check when manually triggered', value: false }
-                    ],
-                    {
-                        placeHolder: 'Enable automatic compatibility checking?'
-                    }
-                );
-
+                const autoCheck = await vscode.window.showQuickPick([
+                    { label: 'Yes', description: 'Automatically check compatibility as you type', value: true },
+                    { label: 'No', description: 'Only check when manually triggered', value: false }
+                ], {
+                    placeHolder: 'Enable automatic compatibility checking?'
+                });
                 if (autoCheck) {
                     // Update configuration
                     const workspaceConfig = vscode.workspace.getConfiguration('baseline');
                     await workspaceConfig.update('browserSupport', browserSupport.split(',').map(s => s.trim()), vscode.ConfigurationTarget.Workspace);
                     await workspaceConfig.update('warningLevel', warningLevel.value, vscode.ConfigurationTarget.Workspace);
                     await workspaceConfig.update('autoCheck', autoCheck.value, vscode.ConfigurationTarget.Workspace);
-                    
                     vscode.window.showInformationMessage('Project configuration updated successfully!');
                 }
             }
         }
     }
-
-    private showCompatibilityReport(diagnostics: vscode.Diagnostic[]): void {
+    showCompatibilityReport(diagnostics) {
         // Create a webview panel to show detailed compatibility report
-        const panel = vscode.window.createWebviewPanel(
-            'baselineReport',
-            'Baseline Compatibility Report',
-            vscode.ViewColumn.One,
-            {
-                enableScripts: true,
-                localResourceRoots: []
-            }
-        );
-
+        const panel = vscode.window.createWebviewPanel('baselineReport', 'Baseline Compatibility Report', vscode.ViewColumn.One, {
+            enableScripts: true,
+            localResourceRoots: []
+        });
         const html = this.generateReportHtml(diagnostics);
         panel.webview.html = html;
-
         // Handle messages from the webview
-        panel.webview.onDidReceiveMessage(
-            message => {
-                switch (message.command) {
-                    case 'openMDN':
-                        if (message.url) {
-                            vscode.env.openExternal(vscode.Uri.parse(message.url));
-                        }
-                        break;
-                    case 'openSpec':
-                        if (message.url) {
-                            vscode.env.openExternal(vscode.Uri.parse(message.url));
-                        }
-                        break;
-                }
-            },
-            undefined,
-            []
-        );
+        panel.webview.onDidReceiveMessage(message => {
+            switch (message.command) {
+                case 'openMDN':
+                    if (message.url) {
+                        vscode.env.openExternal(vscode.Uri.parse(message.url));
+                    }
+                    break;
+                case 'openSpec':
+                    if (message.url) {
+                        vscode.env.openExternal(vscode.Uri.parse(message.url));
+                    }
+                    break;
+            }
+        }, undefined, []);
     }
-
-    private generateReportHtml(diagnostics: vscode.Diagnostic[]): string {
+    generateReportHtml(diagnostics) {
         const groupedDiagnostics = diagnostics.reduce((acc, diagnostic) => {
-            const code = diagnostic.code as string;
+            const code = diagnostic.code;
             if (!acc[code]) {
                 acc[code] = [];
             }
             acc[code].push(diagnostic);
             return acc;
-        }, {} as Record<string, vscode.Diagnostic[]>);
-
+        }, {});
         const features = Object.keys(groupedDiagnostics).map(code => {
             const feature = this.dataService.getFeature(code);
             const diags = groupedDiagnostics[code];
             return { feature, diagnostics: diags };
         }).filter(item => item.feature !== undefined);
-
         return `<!DOCTYPE html>
         <html lang="en">
         <head>
@@ -386,3 +356,5 @@ export class BaselineCommands {
         </html>`;
     }
 }
+exports.BaselineCommands = BaselineCommands;
+//# sourceMappingURL=BaselineCommands.js.map
