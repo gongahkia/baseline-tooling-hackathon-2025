@@ -10,7 +10,8 @@ export class BaselineDataService {
     private data: BaselineData;
     private config: ProjectConfiguration;
     private context: vscode.ExtensionContext;
-    private webFeaturesPackage: any;
+    private onDidChangeDataEmitter: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
+    public readonly onDidChangeData: vscode.Event<void> = this.onDidChangeDataEmitter.event;
 
     constructor(context: vscode.ExtensionContext) {
         this.context = context;
@@ -25,9 +26,6 @@ export class BaselineDataService {
 
     async initialize(): Promise<void> {
         try {
-            // Try to load web-features package
-            await this.loadWebFeaturesPackage();
-            
             // Load baseline data from cache or fetch fresh
             await this.loadBaselineData();
             
@@ -41,17 +39,6 @@ export class BaselineDataService {
         }
     }
 
-    private async loadWebFeaturesPackage(): Promise<void> {
-        try {
-            // Try to require the web-features package
-            this.webFeaturesPackage = require('web-features');
-            console.log('web-features package loaded successfully');
-        } catch (error) {
-            console.warn('web-features package not available, using API fallback');
-            this.webFeaturesPackage = null;
-        }
-    }
-
     private async loadBaselineData(): Promise<void> {
         // Try to load from cache first
         const cachedData = this.cache.get<BaselineData>('baselineData');
@@ -61,21 +48,7 @@ export class BaselineDataService {
             return;
         }
 
-        // Try to load from web-features package
-        if (this.webFeaturesPackage) {
-            try {
-                const features = this.webFeaturesPackage.getBaselineFeatures();
-                this.data.features = new Map(features.map((f: any) => [f.id, f]));
-                this.data.lastUpdated = new Date();
-                this.cache.set('baselineData', this.data);
-                console.log('Baseline data loaded from web-features package');
-                return;
-            } catch (error) {
-                console.warn('Failed to load from web-features package:', error);
-            }
-        }
-
-        // Fallback to Web Platform Dashboard API
+        // Try to fetch from Web Platform Dashboard API
         await this.fetchFromWebPlatformAPI();
     }
 
@@ -288,6 +261,7 @@ export class BaselineDataService {
     async refreshData(): Promise<void> {
         this.cache.del('baselineData');
         await this.loadBaselineData();
+        this.onDidChangeDataEmitter.fire();
     }
 
     getDataVersion(): string {

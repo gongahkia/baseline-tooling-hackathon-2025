@@ -42,7 +42,9 @@ export async function activate(context: vscode.ExtensionContext) {
         context.subscriptions.push(
             vscode.languages.registerDiagnosticProvider(
                 { scheme: 'file', language },
-                diagnosticProvider
+                {
+                    provideDiagnostics: (document, token) => diagnosticProvider.provideDiagnostics(document, token)
+                }
             )
         );
     }
