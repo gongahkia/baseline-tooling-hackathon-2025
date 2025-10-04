@@ -1,6 +1,6 @@
 {
-  "name": "baseline-aware-dev-assistant",
-  "displayName": "Baseline-Aware Development Assistant",
+  "name": "groundwork",
+  "displayName": "GroundWork",
   "description": "VSCode extension that integrates Baseline web feature compatibility data into the developer workflow",
   "version": "1.0.0",
   "publisher": "baseline-tooling",
@@ -20,58 +20,58 @@
     "browser-support",
     "progressive-enhancement"
   ],
-  "activationEvents": [
+    "activationEvents": [
     "onLanguage:html",
     "onLanguage:css",
     "onLanguage:javascript",
     "onLanguage:typescript",
-    "onCommand:baseline.checkCompatibility",
-    "onCommand:baseline.showDashboard"
+    "onCommand:groundwork.checkCompatibility",
+    "onCommand:groundwork.showDashboard"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "baseline.checkCompatibility",
+        "command": "groundwork.checkCompatibility",
         "title": "Check Baseline Compatibility",
-        "category": "Baseline"
+        "category": "GroundWork"
       },
       {
-        "command": "baseline.showDashboard",
+        "command": "groundwork.showDashboard",
         "title": "Show Compatibility Dashboard",
-        "category": "Baseline"
+        "category": "GroundWork"
       },
       {
-        "command": "baseline.refreshData",
+        "command": "groundwork.refreshData",
         "title": "Refresh Baseline Data",
-        "category": "Baseline"
+        "category": "GroundWork"
       },
       {
-        "command": "baseline.configureProject",
+        "command": "groundwork.configureProject",
         "title": "Configure Project Settings",
-        "category": "Baseline"
+        "category": "GroundWork"
       }
     ],
     "configuration": {
-      "title": "Baseline-Aware Development Assistant",
+      "title": "GroundWork",
       "properties": {
-        "baseline.browserSupport": {
+        "groundwork.browserSupport": {
           "type": "array",
           "default": ["chrome 90", "firefox 88", "safari 14"],
           "description": "Target browser support for compatibility checking"
         },
-        "baseline.warningLevel": {
+        "groundwork.warningLevel": {
           "type": "string",
           "enum": ["error", "warning", "info"],
           "default": "warning",
           "description": "Warning level for features not meeting baseline requirements"
         },
-        "baseline.autoCheck": {
+        "groundwork.autoCheck": {
           "type": "boolean",
           "default": true,
           "description": "Automatically check compatibility as you type"
         },
-        "baseline.cacheDuration": {
+        "groundwork.cacheDuration": {
           "type": "number",
           "default": 3600,
           "description": "Cache duration for baseline data in seconds"
@@ -81,44 +81,44 @@
     "views": {
       "explorer": [
         {
-          "id": "baselineFeatures",
-          "name": "Baseline Features",
-          "when": "baseline.hasProject"
+          "id": "groundworkFeatures",
+          "name": "GroundWork Features",
+          "when": "groundwork.hasProject"
         }
       ]
     },
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "baseline",
-          "title": "Baseline Assistant",
-          "icon": "resources/baseline-icon.svg"
+          "id": "groundwork",
+          "title": "GroundWork",
+          "icon": "resources/groundwork-icon.svg"
         }
       ],
       "panel": [
         {
-          "id": "baselineDashboard",
+          "id": "groundworkDashboard",
           "title": "Compatibility Dashboard",
           "icon": "resources/dashboard-icon.svg"
         }
       ]
     },
     "views": {
-      "baseline": [
+      "groundwork": [
         {
-          "id": "baselineFeatures",
+          "id": "groundworkFeatures",
           "name": "Features",
-          "when": "baseline.hasProject"
+          "when": "groundwork.hasProject"
         },
         {
-          "id": "baselineWarnings",
+          "id": "groundworkWarnings",
           "name": "Warnings",
-          "when": "baseline.hasWarnings"
+          "when": "groundwork.hasWarnings"
         }
       ],
-      "baselineDashboard": [
+      "groundworkDashboard": [
         {
-          "id": "baselineDashboard",
+          "id": "groundworkDashboard",
           "name": "Dashboard"
         }
       ]
@@ -126,23 +126,23 @@
     "menus": {
       "editor/context": [
         {
-          "command": "baseline.checkCompatibility",
+          "command": "groundwork.checkCompatibility",
           "when": "editorTextFocus",
-          "group": "baseline"
+          "group": "groundwork"
         }
       ],
       "commandPalette": [
         {
-          "command": "baseline.checkCompatibility"
+          "command": "groundwork.checkCompatibility"
         },
         {
-          "command": "baseline.showDashboard"
+          "command": "groundwork.showDashboard"
         },
         {
-          "command": "baseline.refreshData"
+          "command": "groundwork.refreshData"
         },
         {
-          "command": "baseline.configureProject"
+          "command": "groundwork.configureProject"
         }
       ]
     },
