@@ -1,6 +1,8 @@
-# `GroundWork` - Baseline VScode extension 
+# `GroundWork` - Serving Instant Browser-based Assurance
 
 My submission for the [Baseline Tooling Hackathon](https://baseline.devpost.com/).
+
+See my Devpost submission [here](https://devpost.com/gongahkia/).
 
 ## Usage
 
