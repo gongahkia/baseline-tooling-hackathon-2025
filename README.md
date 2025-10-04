@@ -1,4 +1,4 @@
-# `GroundWork` - Serving Instant Browser-based Assurance
+# `GroundWork` - Instant Browser-based Assurance
 
 My submission for the [Baseline Tooling Hackathon](https://baseline.devpost.com/).
 
