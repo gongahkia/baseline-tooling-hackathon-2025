@@ -92,6 +92,92 @@ export interface ResolvedTargets {
     browserMap: Record<string, string>;
 }
 
+export type SourceLanguage = 'html' | 'css' | 'javascript' | 'typescript';
+
+export interface SourceDocument {
+    filePath: string;
+    relativePath: string;
+    language: SourceLanguage;
+    content: string;
+}
+
+export interface SourceRange {
+    start: {
+        line: number;
+        character: number;
+        offset: number;
+    };
+    end: {
+        line: number;
+        character: number;
+        offset: number;
+    };
+}
+
+export interface BaselineFinding {
+    id: string;
+    featureId: string;
+    canonicalFeatureId: string;
+    feature: BaselineFeature;
+    filePath: string;
+    relativePath: string;
+    language: SourceLanguage;
+    severity: 'error' | 'warning' | 'info';
+    message: string;
+    recommendation?: string;
+    fallback?: string;
+    unsupportedBrowsers: string[];
+    range: SourceRange;
+    excerpt: string;
+}
+
+export interface FeatureInventoryEntry {
+    featureId: string;
+    canonicalFeatureId: string;
+    feature: BaselineFeature;
+    occurrences: number;
+    files: string[];
+}
+
+export interface FileAnalysisReport {
+    filePath: string;
+    relativePath: string;
+    language: SourceLanguage;
+    findings: BaselineFinding[];
+    inventory: FeatureInventoryEntry[];
+    riskScore: number;
+}
+
+export interface BaselineOpportunity {
+    featureId: string;
+    canonicalFeatureId: string;
+    feature: BaselineFeature;
+    reason: string;
+}
+
+export interface BaselineReportSummary {
+    totalFiles: number;
+    totalFindings: number;
+    errorCount: number;
+    warningCount: number;
+    infoCount: number;
+    topRiskFiles: Array<{
+        relativePath: string;
+        riskScore: number;
+        findingCount: number;
+    }>;
+}
+
+export interface BaselineReport {
+    generatedAt: string;
+    dataVersion: string;
+    targets: ResolvedTargets;
+    summary: BaselineReportSummary;
+    files: FileAnalysisReport[];
+    findings: BaselineFinding[];
+    opportunities: BaselineOpportunity[];
+}
+
 export interface CompatibilityIssue {
     feature: BaselineFeature;
     severity: 'error' | 'warning' | 'info';
