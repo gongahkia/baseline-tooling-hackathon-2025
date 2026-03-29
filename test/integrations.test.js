@@ -2,8 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const { formatMarkdownSummary, scanWorkspaceFromSources } = require('../out/integrations/workspaceScanner');
-const { baselineVitePlugin } = require('../build-tools/vite-plugin/src/index.js');
-const { BaselineWebpackPlugin } = require('../build-tools/webpack-plugin/src/index.js');
+const { baselineVitePlugin } = require('../build-tools/vite-plugin');
+const { BaselineWebpackPlugin } = require('../build-tools/webpack-plugin');
 
 test('shared filesystem scanner produces the standardized report shape', () => {
   const report = scanWorkspaceFromSources([

@@ -1,6 +1,7 @@
 import * as path from 'path';
 import { minimatch } from 'minimatch';
 import { BaselineConfig } from './types';
+import { scanWorkspaceFromSources } from '../../../src/integrations/workspaceScanner';
 
 export interface BaselineWebpackPluginOptions {
   config?: BaselineConfig;
@@ -10,16 +11,6 @@ export interface BaselineWebpackPluginOptions {
   exclude?: string[];
   include?: string[];
   reportPath?: string;
-}
-
-type ScannerRuntime = {
-  scanWorkspaceFromSources: (sources: Array<{ filePath: string; content: string }>, options?: { cwd?: string; configuration?: BaselineConfig }) => {
-    findings: Array<{ severity: 'error' | 'warning' | 'info'; message: string; relativePath: string; range: { start: { line: number; character: number } } }>;
-  };
-};
-
-function loadScannerRuntime(): ScannerRuntime {
-  return require(path.resolve(__dirname, '../../../out/integrations/workspaceScanner.js')) as ScannerRuntime;
 }
 
 function shouldProcessFile(filename: string, include: string[], exclude: string[]): boolean {
@@ -58,15 +49,15 @@ export class BaselineWebpackPlugin {
           stage
         },
         () => {
-          const runtime = loadScannerRuntime();
-          const sources = Object.entries(compilation.assets)
+          const assets = compilation.assets as Record<string, { source: () => unknown }>;
+          const sources = Object.entries(assets)
             .filter(([filename]) => shouldProcessFile(filename, this.options.include, this.options.exclude))
             .map(([filename, asset]) => ({
               filePath: path.resolve(this.options.cwd, filename),
               content: String(asset.source())
             }));
 
-          const report = runtime.scanWorkspaceFromSources(sources, {
+          const report = scanWorkspaceFromSources(sources, {
             cwd: this.options.cwd,
             configuration: this.options.config
           });

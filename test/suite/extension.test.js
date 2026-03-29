@@ -1,35 +1,64 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
+const assert = require('node:assert/strict');
+const path = require('path');
+const vscode = require('vscode');
+
+function sleep(milliseconds) {
+    return new Promise(resolve => setTimeout(resolve, milliseconds));
+}
+
+async function waitFor(predicate, timeoutMs = 15000, intervalMs = 200) {
+    const startedAt = Date.now();
+
+    while (Date.now() - startedAt < timeoutMs) {
+        const result = await predicate();
+        if (result) {
+            return result;
+        }
+
+        await sleep(intervalMs);
     }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const assert = __importStar(require("assert"));
-const vscode = __importStar(require("vscode"));
-suite('Extension Test Suite', () => {
-    vscode.window.showInformationMessage('Start all tests.');
-    test('Sample test', () => {
-        assert.strictEqual(-1, [1, 2, 3].indexOf(5));
-        assert.strictEqual(-1, [1, 2, 3].indexOf(0));
+
+    throw new Error(`Timed out after ${timeoutMs}ms`);
+}
+
+async function run() {
+    const extension = vscode.extensions.getExtension('baseline-tooling.groundwork');
+    assert.ok(extension, 'Expected the GroundWork extension to be available in the smoke test host.');
+
+    await extension.activate();
+
+    const commands = await vscode.commands.getCommands(true);
+    for (const command of [
+        'groundwork.checkCompatibility',
+        'groundwork.showDashboard',
+        'groundwork.refreshData',
+        'groundwork.configureProject',
+        'groundwork.scanWorkspace',
+        'groundwork.showFeatureDetails'
+    ]) {
+        assert.ok(commands.includes(command), `Expected command ${command} to be registered.`);
+    }
+
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    assert.ok(workspaceFolder, 'Expected the smoke test workspace to be open.');
+
+    const documentUri = vscode.Uri.file(path.join(workspaceFolder.uri.fsPath, 'src/index.ts'));
+    const document = await vscode.workspace.openTextDocument(documentUri);
+    await vscode.window.showTextDocument(document);
+
+    const diagnostics = await waitFor(() => {
+        const matches = vscode.languages.getDiagnostics(documentUri).filter(diagnostic => diagnostic.source === 'GroundWork');
+        return matches.length > 0 ? matches : undefined;
     });
-});
-//# sourceMappingURL=extension.test.js.map
+
+    assert.ok(
+        diagnostics.some(diagnostic => /optional chaining|nullish coalescing/i.test(diagnostic.message)),
+        'Expected GroundWork diagnostics for the smoke fixture.'
+    );
+
+    await vscode.commands.executeCommand('groundwork.scanWorkspace');
+}
+
+module.exports = {
+    run
+};

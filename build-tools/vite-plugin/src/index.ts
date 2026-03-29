@@ -1,7 +1,6 @@
-import * as path from 'path';
 import { minimatch } from 'minimatch';
-import { Plugin } from 'vite';
 import { BaselineConfig } from './types';
+import { scanWorkspaceFromSources } from '../../../src/integrations/workspaceScanner';
 
 export interface BaselineVitePluginOptions {
   config?: BaselineConfig;
@@ -14,14 +13,16 @@ export interface BaselineVitePluginOptions {
   enableInDev?: boolean;
 }
 
-type ScannerRuntime = {
-  scanWorkspaceFromSources: (sources: Array<{ filePath: string; content: string }>, options?: { cwd?: string; configuration?: BaselineConfig }) => {
-    findings: Array<{ severity: 'error' | 'warning' | 'info'; message: string; relativePath: string; range: { start: { line: number; character: number } } }>;
-  };
-};
-
-function loadScannerRuntime(): ScannerRuntime {
-  return require(path.resolve(__dirname, '../../../out/integrations/workspaceScanner.js')) as ScannerRuntime;
+export interface VitePluginLike {
+  name: string;
+  enforce?: 'pre' | 'post';
+  buildStart?: () => void;
+  transform?: (this: { meta?: { watchMode?: boolean } }, code: string, id: string) => null;
+  generateBundle?: (this: {
+    emitFile: (payload: { type: 'asset'; fileName: string; source: string }) => void;
+    error: (message: string) => never;
+    warn: (message: string) => void;
+  }) => void;
 }
 
 function shouldProcessFile(filename: string, include: string[], exclude: string[]): boolean {
@@ -33,7 +34,7 @@ function shouldProcessFile(filename: string, include: string[], exclude: string[
   return !exclude.some(pattern => minimatch(filename, pattern, { dot: true, matchBase: true }));
 }
 
-export function baselineVitePlugin(options: BaselineVitePluginOptions = {}): Plugin {
+export function baselineVitePlugin(options: BaselineVitePluginOptions = {}): VitePluginLike {
   const {
     config = {},
     cwd = process.cwd(),
@@ -65,8 +66,7 @@ export function baselineVitePlugin(options: BaselineVitePluginOptions = {}): Plu
       return null;
     },
     generateBundle() {
-      const runtime = loadScannerRuntime();
-      const report = runtime.scanWorkspaceFromSources(
+      const report = scanWorkspaceFromSources(
         Array.from(sources.entries()).map(([filePath, content]) => ({ filePath, content })),
         { cwd, configuration: config }
       );
