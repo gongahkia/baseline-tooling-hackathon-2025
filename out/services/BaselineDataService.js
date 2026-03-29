@@ -22,32 +22,23 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BaselineDataService = void 0;
 const vscode = __importStar(require("vscode"));
-const axios_1 = __importDefault(require("axios"));
-const node_cache_1 = __importDefault(require("node-cache"));
+const featureRegistry_1 = require("../core/featureRegistry");
+const configuration_1 = require("../core/configuration");
 class BaselineDataService {
     constructor(context) {
         this.onDidChangeDataEmitter = new vscode.EventEmitter();
         this.onDidChangeData = this.onDidChangeDataEmitter.event;
         this.context = context;
-        this.cache = new node_cache_1.default({ stdTTL: 3600 }); // 1 hour default TTL
-        this.data = {
-            features: new Map(),
-            lastUpdated: new Date(),
-            version: '1.0.0'
-        };
+        this.data = (0, featureRegistry_1.loadBaselineData)();
         this.config = this.loadConfiguration();
+        this.resolvedTargets = (0, configuration_1.resolveTargets)(this.config);
     }
     async initialize() {
         try {
-            // Load baseline data from cache or fetch fresh
             await this.loadBaselineData();
-            // Set up configuration watcher
             this.setupConfigurationWatcher();
             console.log('BaselineDataService initialized successfully');
         }
@@ -57,185 +48,33 @@ class BaselineDataService {
         }
     }
     async loadBaselineData() {
-        // Try to load from cache first
-        const cachedData = this.cache.get('baselineData');
-        if (cachedData) {
-            this.data = cachedData;
-            console.log('Baseline data loaded from cache');
-            return;
-        }
-        // Try to fetch from Web Platform Dashboard API
-        await this.fetchFromWebPlatformAPI();
-    }
-    async fetchFromWebPlatformAPI() {
-        try {
-            const response = await axios_1.default.get('https://web-platform-dashboard.vercel.app/api/baseline');
-            if (response.data && response.data.features) {
-                this.data.features = new Map(response.data.features.map(f => [f.id, f]));
-                this.data.lastUpdated = new Date(response.data.lastUpdated);
-                this.data.version = response.data.version;
-                this.cache.set('baselineData', this.data);
-                console.log('Baseline data loaded from Web Platform Dashboard API');
-            }
-        }
-        catch (error) {
-            console.error('Failed to fetch from Web Platform Dashboard API:', error);
-            // Use fallback mock data
-            this.loadMockData();
-        }
-    }
-    loadMockData() {
-        // Mock data for demonstration purposes
-        const mockFeatures = [
-            {
-                id: 'css-grid',
-                name: 'CSS Grid Layout',
-                description: 'Two-dimensional grid-based layout system',
-                status: 'widely',
-                baseline: {
-                    high: '2017-03-14',
-                    low: '2017-03-14'
-                },
-                support: {
-                    chrome: '57',
-                    firefox: '52',
-                    safari: '10.1',
-                    edge: '16'
-                },
-                mdn_url: 'https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Grid_Layout',
-                spec_url: 'https://www.w3.org/TR/css-grid-1/',
-                caniuse_id: 'css-grid',
-                usage_recommendation: 'Safe to use with modern browsers',
-                progressive_enhancement: 'Use flexbox as fallback for older browsers'
-            },
-            {
-                id: 'css-custom-properties',
-                name: 'CSS Custom Properties (Variables)',
-                description: 'User-defined variables in CSS',
-                status: 'widely',
-                baseline: {
-                    high: '2016-03-15',
-                    low: '2016-03-15'
-                },
-                support: {
-                    chrome: '49',
-                    firefox: '31',
-                    safari: '9.1',
-                    edge: '15'
-                },
-                mdn_url: 'https://developer.mozilla.org/en-US/docs/Web/CSS/Using_CSS_custom_properties',
-                spec_url: 'https://www.w3.org/TR/css-variables-1/',
-                caniuse_id: 'css-variables',
-                usage_recommendation: 'Safe to use with modern browsers',
-                progressive_enhancement: 'Use fallback values for older browsers'
-            },
-            {
-                id: 'css-container-queries',
-                name: 'CSS Container Queries',
-                description: 'Query container dimensions for responsive design',
-                status: 'newly',
-                baseline: {
-                    high: '2023-09-14',
-                    low: '2023-09-14'
-                },
-                support: {
-                    chrome: '105',
-                    firefox: '110',
-                    safari: '16.0',
-                    edge: '105'
-                },
-                mdn_url: 'https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Container_Queries',
-                spec_url: 'https://www.w3.org/TR/css-contain-3/',
-                caniuse_id: 'css-container-queries',
-                usage_recommendation: 'Use with progressive enhancement',
-                progressive_enhancement: 'Use media queries as fallback'
-            },
-            {
-                id: 'css-subgrid',
-                name: 'CSS Subgrid',
-                description: 'Grid items can participate in their parent grid',
-                status: 'limited',
-                baseline: {
-                    high: '2023-09-14',
-                    low: '2023-09-14'
-                },
-                support: {
-                    chrome: '117',
-                    firefox: '71',
-                    safari: '16.0',
-                    edge: '117'
-                },
-                mdn_url: 'https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Grid_Layout/Subgrid',
-                spec_url: 'https://www.w3.org/TR/css-grid-2/',
-                caniuse_id: 'css-subgrid',
-                usage_recommendation: 'Use with feature detection',
-                progressive_enhancement: 'Use regular grid as fallback'
-            },
-            {
-                id: 'javascript-optional-chaining',
-                name: 'Optional Chaining',
-                description: 'Safe property access with ?. operator',
-                status: 'widely',
-                baseline: {
-                    high: '2020-01-01',
-                    low: '2020-01-01'
-                },
-                support: {
-                    chrome: '80',
-                    firefox: '74',
-                    safari: '13.1',
-                    edge: '80'
-                },
-                mdn_url: 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Optional_chaining',
-                spec_url: 'https://tc39.es/ecma262/#sec-optional-chaining',
-                caniuse_id: 'optional-chaining',
-                usage_recommendation: 'Safe to use with modern browsers',
-                progressive_enhancement: 'Use logical AND operators as fallback'
-            },
-            {
-                id: 'javascript-nullish-coalescing',
-                name: 'Nullish Coalescing',
-                description: 'Null and undefined coalescing with ?? operator',
-                status: 'widely',
-                baseline: {
-                    high: '2020-01-01',
-                    low: '2020-01-01'
-                },
-                support: {
-                    chrome: '80',
-                    firefox: '72',
-                    safari: '13.1',
-                    edge: '80'
-                },
-                mdn_url: 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing',
-                spec_url: 'https://tc39.es/ecma262/#sec-nullish-coalescing-operator',
-                caniuse_id: 'nullish-coalescing',
-                usage_recommendation: 'Safe to use with modern browsers',
-                progressive_enhancement: 'Use logical OR operators as fallback'
-            }
-        ];
-        this.data.features = new Map(mockFeatures.map(f => [f.id, f]));
-        this.data.lastUpdated = new Date();
-        this.data.version = '1.0.0-mock';
-        this.cache.set('baselineData', this.data);
-        console.log('Mock baseline data loaded');
+        this.data = (0, featureRegistry_1.loadBaselineData)();
+        this.resolvedTargets = (0, configuration_1.resolveTargets)(this.config);
     }
     loadConfiguration() {
-        const config = vscode.workspace.getConfiguration('groundwork');
-        return {
-            browserSupport: config.get('browserSupport', ['chrome 90', 'firefox 88', 'safari 14']),
-            warningLevel: config.get('warningLevel', 'warning'),
-            autoCheck: config.get('autoCheck', true),
-            cacheDuration: config.get('cacheDuration', 3600)
-        };
+        const workspaceConfiguration = vscode.workspace.getConfiguration('groundwork');
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        const fileConfiguration = (0, configuration_1.readConfigurationFile)(workspaceRoot);
+        return (0, configuration_1.mergeProjectConfiguration)({
+            browserSupport: workspaceConfiguration.get('browserSupport'),
+            warningLevel: workspaceConfiguration.get('warningLevel'),
+            autoCheck: workspaceConfiguration.get('autoCheck'),
+            cacheDuration: workspaceConfiguration.get('cacheDuration'),
+            excludePatterns: workspaceConfiguration.get('excludePatterns'),
+            targetMode: workspaceConfiguration.get('targetMode'),
+            baselineYear: workspaceConfiguration.get('baselineYear'),
+            widelyAvailableOnDate: workspaceConfiguration.get('widelyAvailableOnDate'),
+            includeDownstreamBrowsers: workspaceConfiguration.get('includeDownstreamBrowsers')
+        }, fileConfiguration);
     }
     setupConfigurationWatcher() {
-        vscode.workspace.onDidChangeConfiguration(e => {
+        this.context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(e => {
             if (e.affectsConfiguration('groundwork')) {
                 this.config = this.loadConfiguration();
-                this.cache.set('baselineData', this.data, this.config.cacheDuration);
+                this.resolvedTargets = (0, configuration_1.resolveTargets)(this.config);
+                this.onDidChangeDataEmitter.fire();
             }
-        });
+        }));
     }
     getFeature(id) {
         return this.data.features.get(id);
@@ -255,8 +94,11 @@ class BaselineDataService {
     getConfiguration() {
         return this.config;
     }
+    getResolvedTargets() {
+        return this.resolvedTargets;
+    }
     async refreshData() {
-        this.cache.del('baselineData');
+        this.config = this.loadConfiguration();
         await this.loadBaselineData();
         this.onDidChangeDataEmitter.fire();
     }
@@ -267,7 +109,7 @@ class BaselineDataService {
         return this.data.lastUpdated;
     }
     dispose() {
-        this.cache.flushAll();
+        this.onDidChangeDataEmitter.dispose();
     }
 }
 exports.BaselineDataService = BaselineDataService;

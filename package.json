@@ -20,7 +20,7 @@
     "browser-support",
     "progressive-enhancement"
   ],
-    "activationEvents": [
+  "activationEvents": [
     "onLanguage:html",
     "onLanguage:css",
     "onLanguage:javascript",
@@ -57,12 +57,20 @@
       "properties": {
         "groundwork.browserSupport": {
           "type": "array",
-          "default": ["chrome 90", "firefox 88", "safari 14"],
+          "default": [
+            "chrome 90",
+            "firefox 88",
+            "safari 14"
+          ],
           "description": "Target browser support for compatibility checking"
         },
         "groundwork.warningLevel": {
           "type": "string",
-          "enum": ["error", "warning", "info"],
+          "enum": [
+            "error",
+            "warning",
+            "info"
+          ],
           "default": "warning",
           "description": "Warning level for features not meeting baseline requirements"
         },
@@ -75,33 +83,44 @@
           "type": "number",
           "default": 3600,
           "description": "Cache duration for baseline data in seconds"
+        },
+        "groundwork.excludePatterns": {
+          "type": "array",
+          "default": [
+            "node_modules/**",
+            "dist/**",
+            "build/**",
+            "**/*.min.js",
+            "**/*.min.css"
+          ],
+          "description": "Glob patterns that GroundWork should skip while scanning files"
+        },
+        "groundwork.targetMode": {
+          "type": "string",
+          "enum": [
+            "custom-browser-support",
+            "baseline-widely",
+            "baseline-year"
+          ],
+          "default": "custom-browser-support",
+          "description": "Controls whether GroundWork evaluates explicit browser targets or Baseline milestones"
+        },
+        "groundwork.baselineYear": {
+          "type": "number",
+          "default": 2023,
+          "description": "Baseline year used when target mode is baseline-year"
+        },
+        "groundwork.widelyAvailableOnDate": {
+          "type": "string",
+          "default": "",
+          "description": "Historical date to use when target mode is baseline-widely"
+        },
+        "groundwork.includeDownstreamBrowsers": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include downstream Chromium and Gecko browsers when resolving Baseline targets"
         }
       }
-    },
-    "views": {
-      "explorer": [
-        {
-          "id": "groundworkFeatures",
-          "name": "GroundWork Features",
-          "when": "groundwork.hasProject"
-        }
-      ]
-    },
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "groundwork",
-          "title": "GroundWork",
-          "icon": "resources/groundwork-icon.svg"
-        }
-      ],
-      "panel": [
-        {
-          "id": "groundworkDashboard",
-          "title": "Compatibility Dashboard",
-          "icon": "resources/dashboard-icon.svg"
-        }
-      ]
     },
     "views": {
       "groundwork": [
@@ -120,6 +139,22 @@
         {
           "id": "groundworkDashboard",
           "name": "Dashboard"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "groundwork",
+          "title": "GroundWork",
+          "icon": "resources/groundwork-icon.svg"
+        }
+      ],
+      "panel": [
+        {
+          "id": "groundworkDashboard",
+          "title": "Compatibility Dashboard",
+          "icon": "resources/dashboard-icon.svg"
         }
       ]
     },
@@ -149,19 +184,30 @@
     "languages": [
       {
         "id": "html",
-        "extensions": [".html", ".htm"]
+        "extensions": [
+          ".html",
+          ".htm"
+        ]
       },
       {
         "id": "css",
-        "extensions": [".css"]
+        "extensions": [
+          ".css"
+        ]
       },
       {
         "id": "javascript",
-        "extensions": [".js", ".mjs"]
+        "extensions": [
+          ".js",
+          ".mjs"
+        ]
       },
       {
         "id": "typescript",
-        "extensions": [".ts", ".tsx"]
+        "extensions": [
+          ".ts",
+          ".tsx"
+        ]
       }
     ]
   },
@@ -169,26 +215,28 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js",
+    "test": "npm run compile && npm run lint && node --test test/core.test.js",
     "package": "vsce package",
     "publish": "vsce publish"
   },
   "devDependencies": {
-    "@types/vscode": "^1.74.0",
     "@types/node": "16.x",
+    "@types/vscode": "^1.74.0",
     "@typescript-eslint/eslint-plugin": "^5.45.0",
     "@typescript-eslint/parser": "^5.45.0",
+    "@vscode/test-electron": "^2.2.0",
     "eslint": "^8.28.0",
     "typescript": "^4.9.4",
-    "@vscode/test-electron": "^2.2.0",
     "vsce": "^2.15.0"
   },
   "dependencies": {
     "axios": "^1.6.0",
-    "node-cache": "^5.1.2",
+    "baseline-browser-mapping": "^2.10.12",
     "browserslist": "^4.21.5",
-    "caniuse-lite": "^1.0.30001418"
+    "caniuse-lite": "^1.0.30001418",
+    "minimatch": "^10.2.4",
+    "node-cache": "^5.1.2",
+    "web-features": "^3.22.0"
   }
 }

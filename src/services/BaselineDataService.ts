@@ -1,37 +1,27 @@
 import * as vscode from 'vscode';
-import * as fs from 'fs';
-import * as path from 'path';
-import axios from 'axios';
-import NodeCache from 'node-cache';
-import { BaselineFeature, BaselineData, ProjectConfiguration, CacheEntry, WebPlatformData } from '../types/baseline';
+import { loadBaselineData } from '../core/featureRegistry';
+import { mergeProjectConfiguration, readConfigurationFile, resolveTargets } from '../core/configuration';
+import { BaselineFeature, BaselineData, ProjectConfiguration, ResolvedTargets } from '../types/baseline';
 
 export class BaselineDataService {
-    private cache: NodeCache;
     private data: BaselineData;
     private config: ProjectConfiguration;
+    private resolvedTargets: ResolvedTargets;
     private context: vscode.ExtensionContext;
     private onDidChangeDataEmitter: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
     public readonly onDidChangeData: vscode.Event<void> = this.onDidChangeDataEmitter.event;
 
     constructor(context: vscode.ExtensionContext) {
         this.context = context;
-        this.cache = new NodeCache({ stdTTL: 3600 }); // 1 hour default TTL
-        this.data = {
-            features: new Map(),
-            lastUpdated: new Date(),
-            version: '1.0.0'
-        };
+        this.data = loadBaselineData();
         this.config = this.loadConfiguration();
+        this.resolvedTargets = resolveTargets(this.config);
     }
 
     async initialize(): Promise<void> {
         try {
-            // Load baseline data from cache or fetch fresh
             await this.loadBaselineData();
-            
-            // Set up configuration watcher
             this.setupConfigurationWatcher();
-            
             console.log('BaselineDataService initialized successfully');
         } catch (error) {
             console.error('Failed to initialize BaselineDataService:', error);
@@ -40,197 +30,39 @@ export class BaselineDataService {
     }
 
     private async loadBaselineData(): Promise<void> {
-        // Try to load from cache first
-        const cachedData = this.cache.get<BaselineData>('baselineData');
-        if (cachedData) {
-            this.data = cachedData;
-            console.log('Baseline data loaded from cache');
-            return;
-        }
-
-        // Try to fetch from Web Platform Dashboard API
-        await this.fetchFromWebPlatformAPI();
-    }
-
-    private async fetchFromWebPlatformAPI(): Promise<void> {
-        try {
-            const response = await axios.get<WebPlatformData>('https://web-platform-dashboard.vercel.app/api/baseline');
-            
-            if (response.data && response.data.features) {
-                this.data.features = new Map(
-                    response.data.features.map(f => [f.id, f])
-                );
-                this.data.lastUpdated = new Date(response.data.lastUpdated);
-                this.data.version = response.data.version;
-                
-                this.cache.set('baselineData', this.data);
-                console.log('Baseline data loaded from Web Platform Dashboard API');
-            }
-        } catch (error) {
-            console.error('Failed to fetch from Web Platform Dashboard API:', error);
-            
-            // Use fallback mock data
-            this.loadMockData();
-        }
-    }
-
-    private loadMockData(): void {
-        // Mock data for demonstration purposes
-        const mockFeatures: BaselineFeature[] = [
-            {
-                id: 'css-grid',
-                name: 'CSS Grid Layout',
-                description: 'Two-dimensional grid-based layout system',
-                status: 'widely',
-                baseline: {
-                    high: '2017-03-14',
-                    low: '2017-03-14'
-                },
-                support: {
-                    chrome: '57',
-                    firefox: '52',
-                    safari: '10.1',
-                    edge: '16'
-                },
-                mdn_url: 'https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Grid_Layout',
-                spec_url: 'https://www.w3.org/TR/css-grid-1/',
-                caniuse_id: 'css-grid',
-                usage_recommendation: 'Safe to use with modern browsers',
-                progressive_enhancement: 'Use flexbox as fallback for older browsers'
-            },
-            {
-                id: 'css-custom-properties',
-                name: 'CSS Custom Properties (Variables)',
-                description: 'User-defined variables in CSS',
-                status: 'widely',
-                baseline: {
-                    high: '2016-03-15',
-                    low: '2016-03-15'
-                },
-                support: {
-                    chrome: '49',
-                    firefox: '31',
-                    safari: '9.1',
-                    edge: '15'
-                },
-                mdn_url: 'https://developer.mozilla.org/en-US/docs/Web/CSS/Using_CSS_custom_properties',
-                spec_url: 'https://www.w3.org/TR/css-variables-1/',
-                caniuse_id: 'css-variables',
-                usage_recommendation: 'Safe to use with modern browsers',
-                progressive_enhancement: 'Use fallback values for older browsers'
-            },
-            {
-                id: 'css-container-queries',
-                name: 'CSS Container Queries',
-                description: 'Query container dimensions for responsive design',
-                status: 'newly',
-                baseline: {
-                    high: '2023-09-14',
-                    low: '2023-09-14'
-                },
-                support: {
-                    chrome: '105',
-                    firefox: '110',
-                    safari: '16.0',
-                    edge: '105'
-                },
-                mdn_url: 'https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Container_Queries',
-                spec_url: 'https://www.w3.org/TR/css-contain-3/',
-                caniuse_id: 'css-container-queries',
-                usage_recommendation: 'Use with progressive enhancement',
-                progressive_enhancement: 'Use media queries as fallback'
-            },
-            {
-                id: 'css-subgrid',
-                name: 'CSS Subgrid',
-                description: 'Grid items can participate in their parent grid',
-                status: 'limited',
-                baseline: {
-                    high: '2023-09-14',
-                    low: '2023-09-14'
-                },
-                support: {
-                    chrome: '117',
-                    firefox: '71',
-                    safari: '16.0',
-                    edge: '117'
-                },
-                mdn_url: 'https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Grid_Layout/Subgrid',
-                spec_url: 'https://www.w3.org/TR/css-grid-2/',
-                caniuse_id: 'css-subgrid',
-                usage_recommendation: 'Use with feature detection',
-                progressive_enhancement: 'Use regular grid as fallback'
-            },
-            {
-                id: 'javascript-optional-chaining',
-                name: 'Optional Chaining',
-                description: 'Safe property access with ?. operator',
-                status: 'widely',
-                baseline: {
-                    high: '2020-01-01',
-                    low: '2020-01-01'
-                },
-                support: {
-                    chrome: '80',
-                    firefox: '74',
-                    safari: '13.1',
-                    edge: '80'
-                },
-                mdn_url: 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Optional_chaining',
-                spec_url: 'https://tc39.es/ecma262/#sec-optional-chaining',
-                caniuse_id: 'optional-chaining',
-                usage_recommendation: 'Safe to use with modern browsers',
-                progressive_enhancement: 'Use logical AND operators as fallback'
-            },
-            {
-                id: 'javascript-nullish-coalescing',
-                name: 'Nullish Coalescing',
-                description: 'Null and undefined coalescing with ?? operator',
-                status: 'widely',
-                baseline: {
-                    high: '2020-01-01',
-                    low: '2020-01-01'
-                },
-                support: {
-                    chrome: '80',
-                    firefox: '72',
-                    safari: '13.1',
-                    edge: '80'
-                },
-                mdn_url: 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Nullish_coalescing',
-                spec_url: 'https://tc39.es/ecma262/#sec-nullish-coalescing-operator',
-                caniuse_id: 'nullish-coalescing',
-                usage_recommendation: 'Safe to use with modern browsers',
-                progressive_enhancement: 'Use logical OR operators as fallback'
-            }
-        ];
-
-        this.data.features = new Map(mockFeatures.map(f => [f.id, f]));
-        this.data.lastUpdated = new Date();
-        this.data.version = '1.0.0-mock';
-        
-        this.cache.set('baselineData', this.data);
-        console.log('Mock baseline data loaded');
+        this.data = loadBaselineData();
+        this.resolvedTargets = resolveTargets(this.config);
     }
 
     private loadConfiguration(): ProjectConfiguration {
-        const config = vscode.workspace.getConfiguration('groundwork');
-        
-        return {
-            browserSupport: config.get('browserSupport', ['chrome 90', 'firefox 88', 'safari 14']),
-            warningLevel: config.get('warningLevel', 'warning'),
-            autoCheck: config.get('autoCheck', true),
-            cacheDuration: config.get('cacheDuration', 3600)
-        };
+        const workspaceConfiguration = vscode.workspace.getConfiguration('groundwork');
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        const fileConfiguration = readConfigurationFile(workspaceRoot);
+
+        return mergeProjectConfiguration(
+            {
+                browserSupport: workspaceConfiguration.get<string[]>('browserSupport'),
+                warningLevel: workspaceConfiguration.get<ProjectConfiguration['warningLevel']>('warningLevel'),
+                autoCheck: workspaceConfiguration.get<boolean>('autoCheck'),
+                cacheDuration: workspaceConfiguration.get<number>('cacheDuration'),
+                excludePatterns: workspaceConfiguration.get<string[]>('excludePatterns'),
+                targetMode: workspaceConfiguration.get<ProjectConfiguration['targetMode']>('targetMode'),
+                baselineYear: workspaceConfiguration.get<number>('baselineYear'),
+                widelyAvailableOnDate: workspaceConfiguration.get<string>('widelyAvailableOnDate'),
+                includeDownstreamBrowsers: workspaceConfiguration.get<boolean>('includeDownstreamBrowsers')
+            },
+            fileConfiguration
+        );
     }
 
     private setupConfigurationWatcher(): void {
-        vscode.workspace.onDidChangeConfiguration(e => {
+        this.context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(e => {
             if (e.affectsConfiguration('groundwork')) {
                 this.config = this.loadConfiguration();
-                this.cache.set('baselineData', this.data, this.config.cacheDuration);
+                this.resolvedTargets = resolveTargets(this.config);
+                this.onDidChangeDataEmitter.fire();
             }
-        });
+        }));
     }
 
     getFeature(id: string): BaselineFeature | undefined {
@@ -258,8 +90,12 @@ export class BaselineDataService {
         return this.config;
     }
 
+    getResolvedTargets(): ResolvedTargets {
+        return this.resolvedTargets;
+    }
+
     async refreshData(): Promise<void> {
-        this.cache.del('baselineData');
+        this.config = this.loadConfiguration();
         await this.loadBaselineData();
         this.onDidChangeDataEmitter.fire();
     }
@@ -273,6 +109,6 @@ export class BaselineDataService {
     }
 
     dispose(): void {
-        this.cache.flushAll();
+        this.onDidChangeDataEmitter.dispose();
     }
 }
