@@ -29,7 +29,13 @@ class BaselineHoverProvider {
     constructor(dataService) {
         this.dataService = dataService;
     }
-    provideHover(document, position, token) {
+    async provideHover(document, position, token) {
+        const report = await this.dataService.analyzeTextDocument(document);
+        const matchingFinding = report.findings.find(finding => this.containsPosition(finding, position));
+        if (matchingFinding) {
+            const hoverRange = new vscode.Range(matchingFinding.range.start.line, matchingFinding.range.start.character, matchingFinding.range.end.line, matchingFinding.range.end.character);
+            return new vscode.Hover(this.createHoverContent(matchingFinding.feature, matchingFinding), hoverRange);
+        }
         const word = document.getWordRangeAtPosition(position);
         if (!word) {
             return null;
@@ -45,6 +51,18 @@ class BaselineHoverProvider {
         const feature = features[0];
         const hoverContent = this.createHoverContent(feature);
         return new vscode.Hover(hoverContent, word);
+    }
+    containsPosition(finding, position) {
+        if (position.line < finding.range.start.line || position.line > finding.range.end.line) {
+            return false;
+        }
+        if (position.line === finding.range.start.line && position.character < finding.range.start.character) {
+            return false;
+        }
+        if (position.line === finding.range.end.line && position.character > finding.range.end.character) {
+            return false;
+        }
+        return true;
     }
     findFeaturesInContext(text, line, position, document) {
         const features = [];
@@ -82,7 +100,7 @@ class BaselineHoverProvider {
         }
         return patterns;
     }
-    createHoverContent(feature) {
+    createHoverContent(feature, finding) {
         const content = new vscode.MarkdownString();
         // Header with feature name and status
         const statusEmoji = this.getStatusEmoji(feature.status);
@@ -106,6 +124,9 @@ class BaselineHoverProvider {
         // Progressive enhancement
         if (feature.progressive_enhancement) {
             content.appendMarkdown(`**Progressive Enhancement:** ${feature.progressive_enhancement}\n\n`);
+        }
+        if (finding) {
+            content.appendMarkdown(`**Current Target Impact:** ${finding.unsupportedBrowsers.join(', ')}\n\n`);
         }
         // Links
         if (feature.mdn_url) {

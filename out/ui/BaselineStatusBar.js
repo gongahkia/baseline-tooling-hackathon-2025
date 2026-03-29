@@ -27,59 +27,45 @@ exports.BaselineStatusBar = void 0;
 const vscode = __importStar(require("vscode"));
 class BaselineStatusBar {
     constructor(dataService) {
-        this.isVisible = false;
         this.dataService = dataService;
+        this.isVisible = false;
         this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
     }
     initialize() {
         this.updateStatus();
         this.statusBarItem.show();
         this.isVisible = true;
-        // Update status when data changes
-        this.dataService.onDidChangeData(() => {
-            this.updateStatus();
-        });
-        // Update status when configuration changes
-        vscode.workspace.onDidChangeConfiguration(e => {
-            if (e.affectsConfiguration('groundwork')) {
-                this.updateStatus();
-            }
-        });
+        this.dataService.onDidChangeAnalysis(() => this.updateStatus());
+        this.dataService.onDidChangeData(() => this.updateStatus());
     }
     updateStatus() {
-        const features = this.dataService.getAllFeatures();
-        const config = this.dataService.getConfiguration();
-        const widelyAvailable = features.filter(f => f.status === 'widely').length;
-        const newlyAvailable = features.filter(f => f.status === 'newly').length;
-        const limitedSupport = features.filter(f => f.status === 'limited').length;
-        // Calculate health score
-        const totalFeatures = features.length;
-        const healthScore = totalFeatures > 0 ?
-            Math.round((widelyAvailable / totalFeatures) * 100) : 100;
-        // Set status bar text and color
-        this.statusBarItem.text = `$(check) Baseline: ${healthScore}%`;
-        if (healthScore >= 80) {
-            this.statusBarItem.color = '#4CAF50'; // Green
+        const report = this.dataService.getWorkspaceReport();
+        if (!report) {
+            this.statusBarItem.text = '$(search) GroundWork: scan workspace';
+            this.statusBarItem.tooltip = 'Run a GroundWork workspace scan to populate Baseline results.';
+            this.statusBarItem.command = 'groundwork.scanWorkspace';
+            return;
         }
-        else if (healthScore >= 60) {
-            this.statusBarItem.color = '#FF9800'; // Orange
-        }
-        else {
-            this.statusBarItem.color = '#F44336'; // Red
-        }
-        // Set tooltip
-        this.statusBarItem.tooltip = new vscode.MarkdownString()
-            .appendMarkdown(`**Baseline Compatibility Status**\n\n`)
-            .appendMarkdown(`- Health Score: ${healthScore}%\n`)
-            .appendMarkdown(`- Widely Available: ${widelyAvailable} features\n`)
-            .appendMarkdown(`- Newly Available: ${newlyAvailable} features\n`)
-            .appendMarkdown(`- Limited Support: ${limitedSupport} features\n\n`)
-            .appendMarkdown(`**Configuration**\n`)
-            .appendMarkdown(`- Browser Support: ${config.browserSupport.join(', ')}\n`)
-            .appendMarkdown(`- Warning Level: ${config.warningLevel}\n`)
-            .appendMarkdown(`- Auto Check: ${config.autoCheck ? 'Enabled' : 'Disabled'}`);
-        // Set command
+        const { errorCount, warningCount, infoCount, totalFindings } = report.summary;
+        const score = Math.max(0, 100 - (errorCount * 12 + warningCount * 6 + infoCount * 2));
+        this.statusBarItem.text = totalFindings === 0
+            ? '$(pass-filled) GroundWork: clear'
+            : `$(pulse) GroundWork: ${totalFindings} issues`;
+        this.statusBarItem.color = totalFindings === 0
+            ? '#22C55E'
+            : errorCount > 0
+                ? '#F97316'
+                : '#FACC15';
         this.statusBarItem.command = 'groundwork.showDashboard';
+        this.statusBarItem.tooltip = new vscode.MarkdownString([
+            `**GroundWork Workspace Summary**`,
+            ``,
+            `- Score: ${score}`,
+            `- Errors: ${errorCount}`,
+            `- Warnings: ${warningCount}`,
+            `- Info: ${infoCount}`,
+            `- Target: ${report.targets.label}`
+        ].join('\n'));
     }
     show() {
         if (!this.isVisible) {

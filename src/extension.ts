@@ -10,7 +10,8 @@ import { BaselineCommands } from './ui/BaselineCommands';
 let dataService: BaselineDataService;
 let diagnosticProvider: CompatibilityDiagnosticProvider;
 let hoverProvider: BaselineHoverProvider;
-let treeDataProvider: BaselineTreeDataProvider;
+let featuresTreeDataProvider: BaselineTreeDataProvider;
+let warningsTreeDataProvider: BaselineTreeDataProvider;
 let dashboardProvider: BaselineDashboardProvider;
 let statusBar: BaselineStatusBar;
 let commands: BaselineCommands;
@@ -25,25 +26,32 @@ export async function activate(context: vscode.ExtensionContext) {
     // Initialize providers
     diagnosticProvider = new CompatibilityDiagnosticProvider(dataService);
     hoverProvider = new BaselineHoverProvider(dataService);
-    treeDataProvider = new BaselineTreeDataProvider(dataService);
+    featuresTreeDataProvider = new BaselineTreeDataProvider(dataService, 'features');
+    warningsTreeDataProvider = new BaselineTreeDataProvider(dataService, 'warnings');
     dashboardProvider = new BaselineDashboardProvider(dataService);
 
     // Initialize UI components
     statusBar = new BaselineStatusBar(dataService);
-    commands = new BaselineCommands(dataService, diagnosticProvider, dashboardProvider);
+    commands = new BaselineCommands(dataService, diagnosticProvider);
 
     // Register providers
     const diagnosticCollection = vscode.languages.createDiagnosticCollection('baseline');
     context.subscriptions.push(diagnosticCollection);
 
     // Set up file watchers for automatic checking
-    const watcher = vscode.workspace.createFileSystemWatcher('**/*.{html,css,js,ts,tsx}');
+    const watcher = vscode.workspace.createFileSystemWatcher('**/*.{html,htm,css,js,mjs,ts,tsx}');
     watcher.onDidChange(async (uri) => {
         if (vscode.workspace.getConfiguration('groundwork').get('autoCheck', true)) {
             const document = await vscode.workspace.openTextDocument(uri);
             const diagnostics = await diagnosticProvider.provideDiagnostics(document, new vscode.CancellationTokenSource().token);
             diagnosticCollection.set(uri, diagnostics || []);
         }
+    });
+    watcher.onDidCreate(async () => {
+        await dataService.scanWorkspace();
+    });
+    watcher.onDidDelete(async () => {
+        await dataService.scanWorkspace();
     });
     context.subscriptions.push(watcher);
 
@@ -56,8 +64,26 @@ export async function activate(context: vscode.ExtensionContext) {
     // Check active document on activation
     const activeEditor = vscode.window.activeTextEditor;
     if (activeEditor) {
-        checkDocument(activeEditor.document);
+        await checkDocument(activeEditor.document);
     }
+
+    context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(async event => {
+        if (!vscode.workspace.getConfiguration('groundwork').get('autoCheck', true)) {
+            return;
+        }
+
+        await checkDocument(event.document);
+    }));
+
+    context.subscriptions.push(vscode.workspace.onDidOpenTextDocument(async document => {
+        if (!vscode.workspace.getConfiguration('groundwork').get('autoCheck', true)) {
+            return;
+        }
+
+        await checkDocument(document);
+    }));
+
+    await dataService.scanWorkspace();
 
     // Register hover provider
     context.subscriptions.push(
@@ -88,16 +114,30 @@ export async function activate(context: vscode.ExtensionContext) {
         )
     );
 
+    context.subscriptions.push(
+        vscode.languages.registerHoverProvider(
+            { scheme: 'file', language: 'javascriptreact' },
+            hoverProvider
+        )
+    );
+
+    context.subscriptions.push(
+        vscode.languages.registerHoverProvider(
+            { scheme: 'file', language: 'typescriptreact' },
+            hoverProvider
+        )
+    );
+
     // Register tree view
     context.subscriptions.push(
         vscode.window.createTreeView('groundworkFeatures', {
-            treeDataProvider: treeDataProvider
+            treeDataProvider: featuresTreeDataProvider
         })
     );
 
     context.subscriptions.push(
         vscode.window.createTreeView('groundworkWarnings', {
-            treeDataProvider: treeDataProvider
+            treeDataProvider: warningsTreeDataProvider
         })
     );
 
@@ -129,13 +169,25 @@ export async function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('groundwork.refreshData', () => {
-            commands.refreshData();
+            return commands.refreshData();
         })
     );
 
     context.subscriptions.push(
         vscode.commands.registerCommand('groundwork.configureProject', () => {
-            commands.configureProject();
+            return commands.configureProject();
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('groundwork.scanWorkspace', () => {
+            return commands.scanWorkspace();
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('groundwork.showFeatureDetails', (featureOrId) => {
+            return commands.showFeatureDetails(featureOrId);
         })
     );
 
@@ -144,7 +196,11 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // Update context for when clauses
     vscode.commands.executeCommand('setContext', 'groundwork.hasProject', true);
-    vscode.commands.executeCommand('setContext', 'groundwork.hasWarnings', false);
+    vscode.commands.executeCommand('setContext', 'groundwork.hasWarnings', Boolean(dataService.getWorkspaceReport()?.summary.totalFindings));
+    dataService.onDidChangeAnalysis(() => {
+        const report = dataService.getWorkspaceReport();
+        void vscode.commands.executeCommand('setContext', 'groundwork.hasWarnings', Boolean(report?.summary.totalFindings));
+    });
 
     console.log('GroundWork activation complete');
 }

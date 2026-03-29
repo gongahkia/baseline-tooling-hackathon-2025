@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { BaselineDataService } from '../services/BaselineDataService';
-import { BaselineFeature } from '../types/baseline';
+import { BaselineFeature, BaselineFinding } from '../types/baseline';
 
 export class BaselineHoverProvider implements vscode.HoverProvider {
     private dataService: BaselineDataService;
@@ -9,7 +9,20 @@ export class BaselineHoverProvider implements vscode.HoverProvider {
         this.dataService = dataService;
     }
 
-    provideHover(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): vscode.ProviderResult<vscode.Hover> {
+    async provideHover(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Hover | null> {
+        const report = await this.dataService.analyzeTextDocument(document);
+        const matchingFinding = report.findings.find(finding => this.containsPosition(finding, position));
+        if (matchingFinding) {
+            const hoverRange = new vscode.Range(
+                matchingFinding.range.start.line,
+                matchingFinding.range.start.character,
+                matchingFinding.range.end.line,
+                matchingFinding.range.end.character
+            );
+
+            return new vscode.Hover(this.createHoverContent(matchingFinding.feature, matchingFinding), hoverRange);
+        }
+
         const word = document.getWordRangeAtPosition(position);
         if (!word) {
             return null;
@@ -30,6 +43,22 @@ export class BaselineHoverProvider implements vscode.HoverProvider {
         const hoverContent = this.createHoverContent(feature);
         
         return new vscode.Hover(hoverContent, word);
+    }
+
+    private containsPosition(finding: BaselineFinding, position: vscode.Position): boolean {
+        if (position.line < finding.range.start.line || position.line > finding.range.end.line) {
+            return false;
+        }
+
+        if (position.line === finding.range.start.line && position.character < finding.range.start.character) {
+            return false;
+        }
+
+        if (position.line === finding.range.end.line && position.character > finding.range.end.character) {
+            return false;
+        }
+
+        return true;
     }
 
     private findFeaturesInContext(text: string, line: string, position: vscode.Position, document: vscode.TextDocument): BaselineFeature[] {
@@ -126,7 +155,7 @@ export class BaselineHoverProvider implements vscode.HoverProvider {
         return patterns;
     }
 
-    private createHoverContent(feature: BaselineFeature): vscode.MarkdownString {
+    private createHoverContent(feature: BaselineFeature, finding?: BaselineFinding): vscode.MarkdownString {
         const content = new vscode.MarkdownString();
         
         // Header with feature name and status
@@ -156,6 +185,10 @@ export class BaselineHoverProvider implements vscode.HoverProvider {
         // Progressive enhancement
         if (feature.progressive_enhancement) {
             content.appendMarkdown(`**Progressive Enhancement:** ${feature.progressive_enhancement}\n\n`);
+        }
+
+        if (finding) {
+            content.appendMarkdown(`**Current Target Impact:** ${finding.unsupportedBrowsers.join(', ')}\n\n`);
         }
         
         // Links
