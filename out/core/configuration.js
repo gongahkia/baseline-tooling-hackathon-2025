@@ -33,7 +33,7 @@ const DEFAULT_CONFIGURATION = {
     warningLevel: 'warning',
     autoCheck: true,
     cacheDuration: 3600,
-    excludePatterns: ['node_modules/**', 'dist/**', 'build/**', '**/*.min.js', '**/*.min.css'],
+    excludePatterns: ['node_modules/**', 'dist/**', 'build/**', 'out/**', 'build-tools/**', '.git/**', '**/*.min.js', '**/*.min.css'],
     targetMode: 'custom-browser-support',
     baselineYear: undefined,
     widelyAvailableOnDate: undefined,

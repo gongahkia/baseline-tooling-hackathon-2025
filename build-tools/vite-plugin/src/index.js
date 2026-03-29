@@ -1,96 +1,56 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.baselineVitePlugin = void 0;
-const BaselineChecker_1 = require("./BaselineChecker");
+const path = require("path");
+const minimatch_1 = require("minimatch");
+function loadScannerRuntime() {
+    return require(path.resolve(__dirname, '../../../out/integrations/workspaceScanner.js'));
+}
+function shouldProcessFile(filename, include, exclude) {
+    const included = include.some(pattern => (0, minimatch_1.minimatch)(filename, pattern, { dot: true, matchBase: true }));
+    if (!included) {
+        return false;
+    }
+    return !exclude.some(pattern => (0, minimatch_1.minimatch)(filename, pattern, { dot: true, matchBase: true }));
+}
 function baselineVitePlugin(options = {}) {
-    const { config = {}, failOnError = true, failOnWarning = false, exclude = ['node_modules/**'], include = ['**/*.{html,css,js,ts,tsx}'], reportPath = 'baseline-report.json', enableInDev = false } = options;
-    const checker = new BaselineChecker_1.BaselineChecker(config);
-    let issues = [];
+    const { config = {}, cwd = process.cwd(), failOnError = true, failOnWarning = false, exclude = ['node_modules/**'], include = ['**/*.{html,htm,css,js,mjs,ts,tsx}'], reportPath = 'baseline-report.json', enableInDev = false } = options;
+    const sources = new Map();
     return {
-        name: 'baseline-vite-plugin',
+        name: 'groundwork-vite-plugin',
         enforce: 'post',
         buildStart() {
-            issues = [];
+            sources.clear();
         },
-        async transform(code, id) {
-            // Skip in development mode unless explicitly enabled
-            if (this.meta?.mode === 'development' && !enableInDev) {
+        transform(code, id) {
+            var _a;
+            if (((_a = this.meta) === null || _a === void 0 ? void 0 : _a.watchMode) && !enableInDev) {
                 return null;
             }
-            // Check if file should be processed
-            if (!shouldProcessFile(id, include, exclude)) {
-                return null;
-            }
-            try {
-                const fileIssues = await checker.checkFile(id, code);
-                issues.push(...fileIssues);
-            }
-            catch (error) {
-                this.error(`Baseline Vite Plugin: ${error}`);
+            if (shouldProcessFile(id, include, exclude)) {
+                sources.set(id, code);
             }
             return null;
         },
-        async generateBundle(options, bundle) {
-            // Generate report
-            const report = {
-                timestamp: new Date().toISOString(),
-                version: '1.0.0',
-                issues,
-                summary: {
-                    totalFiles: new Set(issues.map(i => i.file)).size,
-                    totalIssues: issues.length,
-                    errors: issues.filter(i => i.severity === 'error').length,
-                    warnings: issues.filter(i => i.severity === 'warning').length,
-                    info: issues.filter(i => i.severity === 'info').length
-                }
-            };
-            // Add report to bundle
+        generateBundle() {
+            const runtime = loadScannerRuntime();
+            const report = runtime.scanWorkspaceFromSources(Array.from(sources.entries()).map(([filePath, content]) => ({ filePath, content })), { cwd, configuration: config });
             this.emitFile({
                 type: 'asset',
                 fileName: reportPath,
                 source: JSON.stringify(report, null, 2)
             });
-            // Log summary
-            console.log(`\n📊 Baseline Compatibility Report:`);
-            console.log(`   Files processed: ${report.summary.totalFiles}`);
-            console.log(`   Total issues: ${report.summary.totalIssues}`);
-            console.log(`   Errors: ${report.summary.errors}`);
-            console.log(`   Warnings: ${report.summary.warnings}`);
-            console.log(`   Info: ${report.summary.info}`);
-            console.log(`   Report saved to: ${reportPath}\n`);
-            // Handle errors and warnings
-            for (const issue of issues) {
-                const error = new Error(`Baseline: ${issue.message}`);
-                error.file = issue.file;
-                error.line = issue.line;
-                error.column = issue.column;
-                if (issue.severity === 'error' && failOnError) {
-                    this.error(error);
+            for (const finding of report.findings) {
+                const location = `${finding.relativePath}:${finding.range.start.line + 1}:${finding.range.start.character + 1}`;
+                const message = `GroundWork: ${location} ${finding.message}`;
+                if (finding.severity === 'error' && failOnError) {
+                    this.error(message);
                 }
-                else if (issue.severity === 'warning' && failOnWarning) {
-                    this.warn(error);
+                if (finding.severity === 'warning' && failOnWarning) {
+                    this.warn(message);
                 }
             }
         }
     };
 }
 exports.baselineVitePlugin = baselineVitePlugin;
-function shouldProcessFile(filename, include, exclude) {
-    // Check include patterns
-    const matchesInclude = include.some(pattern => matchPattern(filename, pattern));
-    if (!matchesInclude) {
-        return false;
-    }
-    // Check exclude patterns
-    const matchesExclude = exclude.some(pattern => matchPattern(filename, pattern));
-    return !matchesExclude;
-}
-function matchPattern(filename, pattern) {
-    // Simple glob pattern matching
-    const regex = new RegExp(pattern
-        .replace(/\*\*/g, '.*')
-        .replace(/\*/g, '[^/]*')
-        .replace(/\?/g, '.'));
-    return regex.test(filename);
-}
-//# sourceMappingURL=index.js.map

@@ -104,6 +104,9 @@
             "node_modules/**",
             "dist/**",
             "build/**",
+            "out/**",
+            "build-tools/**",
+            ".git/**",
             "**/*.min.js",
             "**/*.min.css"
           ],
@@ -234,6 +237,7 @@
     "watch": "tsc -watch -p ./",
     "lint": "eslint src --ext ts",
     "test": "npm run compile && npm run lint && node --test test/*.test.js",
+    "scan": "npm run compile && node ./out/cli/groundwork-cli.js",
     "package": "vsce package",
     "publish": "vsce publish"
   },

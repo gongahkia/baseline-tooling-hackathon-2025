@@ -2,8 +2,8 @@
   "name": "baseline-webpack-plugin",
   "version": "1.0.0",
   "description": "Webpack plugin for Baseline compatibility checking",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "src/index.js",
+  "types": "src/index.ts",
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",

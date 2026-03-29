@@ -1,111 +1,64 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BaselineWebpackPlugin = void 0;
-const webpack_1 = require("webpack");
-const BaselineChecker_1 = require("./BaselineChecker");
+const path = require("path");
+const minimatch_1 = require("minimatch");
+function loadScannerRuntime() {
+    return require(path.resolve(__dirname, '../../../out/integrations/workspaceScanner.js'));
+}
+function shouldProcessFile(filename, include, exclude) {
+    const included = include.some(pattern => (0, minimatch_1.minimatch)(filename, pattern, { dot: true, matchBase: true }));
+    if (!included) {
+        return false;
+    }
+    return !exclude.some(pattern => (0, minimatch_1.minimatch)(filename, pattern, { dot: true, matchBase: true }));
+}
 class BaselineWebpackPlugin {
     constructor(options = {}) {
         this.options = {
-            config: options.config || {},
-            failOnError: options.failOnError ?? true,
-            failOnWarning: options.failOnWarning ?? false,
-            exclude: options.exclude || ['node_modules/**'],
-            include: options.include || ['**/*.{html,css,js,ts,tsx}'],
-            reportPath: options.reportPath || 'baseline-report.json'
+            config: options.config !== null && options.config !== void 0 ? options.config : {},
+            cwd: options.cwd !== null && options.cwd !== void 0 ? options.cwd : process.cwd(),
+            failOnError: options.failOnError !== null && options.failOnError !== void 0 ? options.failOnError : true,
+            failOnWarning: options.failOnWarning !== null && options.failOnWarning !== void 0 ? options.failOnWarning : false,
+            exclude: options.exclude !== null && options.exclude !== void 0 ? options.exclude : ['node_modules/**'],
+            include: options.include !== null && options.include !== void 0 ? options.include : ['**/*.{html,htm,css,js,mjs,ts,tsx}'],
+            reportPath: options.reportPath !== null && options.reportPath !== void 0 ? options.reportPath : 'baseline-report.json'
         };
-        this.checker = new BaselineChecker_1.BaselineChecker(this.options.config);
     }
     apply(compiler) {
-        compiler.hooks.compilation.tap('BaselineWebpackPlugin', (compilation) => {
-            compilation.hooks.processAssets.tapAsync({
-                name: 'BaselineWebpackPlugin',
-                stage: webpack_1.Compilation.PROCESS_ASSETS_STAGE_ANALYSE
-            }, async (assets, callback) => {
-                try {
-                    await this.processAssets(compilation, assets);
-                    callback();
-                }
-                catch (error) {
-                    compilation.errors.push(new Error(`Baseline Webpack Plugin: ${error}`));
-                    callback();
+        compiler.hooks.compilation.tap('GroundWorkWebpackPlugin', (compilation) => {
+            var _a, _b;
+            compilation.hooks.processAssets.tap({
+                name: 'GroundWorkWebpackPlugin',
+                stage: ((_b = (_a = compiler.webpack) === null || _a === void 0 ? void 0 : _a.Compilation) === null || _b === void 0 ? void 0 : _b.PROCESS_ASSETS_STAGE_ANALYSE) ?? 4000
+            }, () => {
+                const runtime = loadScannerRuntime();
+                const sources = Object.entries(compilation.assets)
+                    .filter(([filename]) => shouldProcessFile(filename, this.options.include, this.options.exclude))
+                    .map(([filename, asset]) => ({
+                    filePath: path.resolve(this.options.cwd, filename),
+                    content: String(asset.source())
+                }));
+                const report = runtime.scanWorkspaceFromSources(sources, {
+                    cwd: this.options.cwd,
+                    configuration: this.options.config
+                });
+                compilation.emitAsset(this.options.reportPath, {
+                    source: () => JSON.stringify(report, null, 2),
+                    size: () => JSON.stringify(report, null, 2).length
+                });
+                for (const finding of report.findings) {
+                    const location = `${finding.relativePath}:${finding.range.start.line + 1}:${finding.range.start.character + 1}`;
+                    const error = new Error(`GroundWork: ${location} ${finding.message}`);
+                    if (finding.severity === 'error' && this.options.failOnError) {
+                        compilation.errors.push(error);
+                    }
+                    if (finding.severity === 'warning' && this.options.failOnWarning) {
+                        compilation.warnings.push(error);
+                    }
                 }
             });
         });
     }
-    async processAssets(compilation, assets) {
-        const issues = [];
-        const report = {
-            timestamp: new Date().toISOString(),
-            version: '1.0.0',
-            issues: [],
-            summary: {
-                totalFiles: 0,
-                totalIssues: 0,
-                errors: 0,
-                warnings: 0,
-                info: 0
-            }
-        };
-        for (const [filename, asset] of Object.entries(assets)) {
-            if (this.shouldProcessFile(filename)) {
-                const source = asset.source();
-                if (typeof source === 'string') {
-                    const fileIssues = await this.checker.checkFile(filename, source);
-                    issues.push(...fileIssues);
-                    report.summary.totalFiles++;
-                }
-            }
-        }
-        report.issues = issues;
-        report.summary.totalIssues = issues.length;
-        report.summary.errors = issues.filter(i => i.severity === 'error').length;
-        report.summary.warnings = issues.filter(i => i.severity === 'warning').length;
-        report.summary.info = issues.filter(i => i.severity === 'info').length;
-        // Add report to compilation assets
-        compilation.emitAsset(this.options.reportPath, {
-            source: () => JSON.stringify(report, null, 2),
-            size: () => JSON.stringify(report, null, 2).length
-        });
-        // Add issues to compilation
-        for (const issue of issues) {
-            const error = new Error(`Baseline: ${issue.message}`);
-            error.file = issue.file;
-            error.line = issue.line;
-            error.column = issue.column;
-            if (issue.severity === 'error' && this.options.failOnError) {
-                compilation.errors.push(error);
-            }
-            else if (issue.severity === 'warning' && this.options.failOnWarning) {
-                compilation.warnings.push(error);
-            }
-        }
-        // Log summary
-        console.log(`\n📊 Baseline Compatibility Report:`);
-        console.log(`   Files processed: ${report.summary.totalFiles}`);
-        console.log(`   Total issues: ${report.summary.totalIssues}`);
-        console.log(`   Errors: ${report.summary.errors}`);
-        console.log(`   Warnings: ${report.summary.warnings}`);
-        console.log(`   Info: ${report.summary.info}`);
-        console.log(`   Report saved to: ${this.options.reportPath}\n`);
-    }
-    shouldProcessFile(filename) {
-        // Check include patterns
-        const matchesInclude = this.options.include.some(pattern => this.matchPattern(filename, pattern));
-        if (!matchesInclude) {
-            return false;
-        }
-        // Check exclude patterns
-        const matchesExclude = this.options.exclude.some(pattern => this.matchPattern(filename, pattern));
-        return !matchesExclude;
-    }
-    matchPattern(filename, pattern) {
-        // Simple glob pattern matching
-        const regex = new RegExp(pattern
-            .replace(/\*\*/g, '.*')
-            .replace(/\*/g, '[^/]*')
-            .replace(/\?/g, '.'));
-        return regex.test(filename);
-    }
 }
 exports.BaselineWebpackPlugin = BaselineWebpackPlugin;
-//# sourceMappingURL=index.js.map

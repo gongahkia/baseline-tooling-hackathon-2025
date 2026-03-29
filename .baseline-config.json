@@ -16,6 +16,9 @@
     "node_modules/**",
     "dist/**",
     "build/**",
+    "out/**",
+    "build-tools/**",
+    ".git/**",
     "**/*.min.js",
     "**/*.min.css"
   ],
